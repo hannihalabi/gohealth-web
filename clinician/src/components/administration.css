@@ -35,3 +35,29 @@
 .dashboard-events li:last-child { border: 0; }
 .dashboard-events time { color: var(--muted); font-size: 13px; white-space: nowrap; }
 @media (max-width: 900px) { .dashboard-tiles { grid-template-columns: 1fr 1fr; } .dashboard-columns { grid-template-columns: 1fr; } }
+.pt { display: grid; gap: 20px; }
+.pt-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.pt-tile { display: grid; gap: 2px; padding: 20px; background: white; border: 1px solid var(--line); border-radius: 15px; }
+.pt-tile svg { color: var(--plum); margin-bottom: 8px; }
+.pt-tile strong { font-size: 30px; line-height: 1.1; }
+.pt-tile span { color: var(--muted); font-size: 13px; }
+.pt-tile.is-alert { border-color: var(--plum); background: #f9f1f6; }
+.pt-card { padding: 22px; }
+.pt-card h2 { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; font-size: 16px; }
+.pt-count { min-width: 28px; padding: 2px 8px; text-align: center; background: #f4eff5; color: var(--plum); border-radius: 99px; font-size: 13px; }
+.pt-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.pt-muted { color: var(--muted); margin: 0; font-size: 14px; }
+.pt-funnel { display: grid; gap: 14px; }
+.pt-step { display: grid; grid-template-columns: 40px 150px 1fr 40px; gap: 14px; align-items: center; }
+.pt-step-icon { display: grid; place-items: center; width: 40px; height: 40px; color: var(--plum); background: #f6edf3; border-radius: 12px; }
+.pt-step-label { font-weight: 600; font-size: 14px; }
+.pt-step-label small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+.pt-bar { display: block; height: 12px; background: #f1edf3; border-radius: 6px; overflow: hidden; }
+.pt-bar i { display: block; height: 100%; min-width: 4px; background: var(--plum); border-radius: 6px; }
+.pt-step b { text-align: right; font-size: 18px; }
+.pt-mrr { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; }
+.pt-mrr strong { font-size: 30px; }
+.pt-spark { width: 240px; height: 56px; }
+.pt-spark path { fill: none; stroke: var(--plum); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.pt-spark.is-empty path { stroke: #d9d0de; stroke-dasharray: 5 5; }
+@media (max-width: 900px) { .pt-tiles { grid-template-columns: 1fr 1fr; } .pt-columns { grid-template-columns: 1fr; } .pt-step { grid-template-columns: 40px 1fr 40px; } .pt-bar { grid-column: 1 / -1; order: 5; } }
