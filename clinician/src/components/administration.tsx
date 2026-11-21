@@ -40,6 +40,7 @@ import { normalizeSearch } from "@/lib/model";
 import { PatientsOverview } from "@/components/patients-overview";
 import { SystemOverview } from "@/components/overview/system-overview";
 import { OrganizationChart } from "@/components/overview/organization-chart";
+import "./shell.css";
 import "./administration.css";
 const demoUser = "10000000-0000-4000-8000-000000000010";
 function demoData(): AdministrationData {

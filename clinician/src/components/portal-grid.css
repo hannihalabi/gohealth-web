@@ -1,0 +1,38 @@
+/* Table Editor-style patient grid for the clinician portal. */
+.clinical-workspace .content { padding-top: 0; }
+.wb-tabs { display: flex; align-items: flex-end; gap: 2px; margin: 0 -28px 0; padding: 0 28px; background: #f1eef3; border-bottom: 1px solid var(--line); min-height: 42px; }
+.wb-tabs > button, .wb-tabs > .wb-patient-tab { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; font-size: 14px; color: var(--muted); border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; background: none; cursor: pointer; }
+.wb-tabs > .active { background: #fff; color: var(--ink); border-color: var(--line); font-weight: 600; margin-bottom: -1px; box-shadow: inset 0 2px 0 var(--plum); }
+.wb-patient-tab button { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; color: var(--muted); }
+.wb-patient-tab button:hover { background: #f1e3eb; color: var(--plum); }
+.wb-avatar { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: #f1e3eb; color: var(--plum); font-size: 9px; font-weight: 700; }
+.grid-view { margin: 0 -28px; background: #fff; min-height: calc(100vh - var(--topbar) - 42px); display: flex; flex-direction: column; }
+.grid-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 28px; border-bottom: 1px solid var(--line); }
+.grid-filter { flex: 1; display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.grid-filter input { flex: 1; border: 0; background: none; outline: none; font: inherit; font-size: 14px; color: var(--ink); padding: 8px 0; }
+.grid-btn { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; color: var(--muted); }
+.grid-btn:hover { color: var(--plum); border-color: var(--plum); }
+.grid-scroll { flex: 1; overflow: auto; }
+table.grid { width: 100%; border-collapse: collapse; }
+table.grid th { position: sticky; top: 0; padding: 10px 16px; font-size: 13px; letter-spacing: 0; text-transform: none; font-weight: 600; color: var(--ink); background: #faf9fb; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); white-space: nowrap; }
+table.grid th i { margin-left: 8px; font-style: normal; font-weight: 400; color: var(--muted); font-size: 12px; }
+table.grid td { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid var(--line); border-right: 1px solid #f3f0f5; }
+table.grid tbody tr { cursor: pointer; }
+table.grid tbody tr:hover { background: #fbf6f9; }
+table.grid .patient-link { display: inline-flex; align-items: center; gap: 10px; }
+table.grid .patient-avatar { width: 26px; height: 26px; font-size: 10px; border-radius: 8px; }
+.grid-chip { display: inline-block; padding: 2px 9px; font-size: 12px; font-weight: 600; border-radius: 99px; }
+.grid-chip.ok { color: #1f7a5a; background: #e6f5ee; }
+.grid-chip.warn { color: #8a5a12; background: #fbf0dc; }
+.grid-open { width: 44px; text-align: right; color: var(--muted); }
+.grid-footer { display: flex; justify-content: space-between; padding: 10px 28px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); background: #faf9fb; }
+/* Patient view: compact header and underline tabs. */
+.clinical-workspace .patient-heading { margin: 18px 0 6px; gap: 14px; align-items: center; }
+.clinical-workspace .patient-heading h1 { font-size: 22px; letter-spacing: -.4px; margin: 0; }
+.clinical-workspace .patient-avatar.large { width: 44px; height: 44px; font-size: 14px; border-radius: 12px; }
+.clinical-workspace .tabs { display: flex; gap: 4px; margin: 10px 0 18px; padding: 0; background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; overflow-x: auto; }
+.clinical-workspace .tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 12px 14px; font-size: 14px; font-weight: 500; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; margin-bottom: -1px; white-space: nowrap; cursor: pointer; }
+.clinical-workspace .tabs button:hover { color: var(--ink); }
+.clinical-workspace .tabs button.active, .clinical-workspace .tabs button[aria-selected="true"] { color: var(--plum); font-weight: 600; border-bottom-color: var(--plum); background: none; box-shadow: none; }
+.clinical-workspace .stat { padding: 14px 18px; }
+@media (max-width: 900px) { .wb-tabs, .grid-view { margin: 0 -16px; } .wb-tabs, .grid-toolbar, .grid-footer { padding-left: 16px; padding-right: 16px; } .clinical-workspace .content { padding-top: 0; } }

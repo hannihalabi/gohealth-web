@@ -7,7 +7,7 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  ChevronRight,
+  RefreshCw,
   ClipboardList,
   Download,
   FileCheck2,
@@ -18,8 +18,6 @@ import {
   LayoutDashboard,
   LockKeyhole,
   LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
   Plus,
   Search,
   ShieldCheck,
@@ -47,6 +45,8 @@ import {
 import { demoDetail, demoPatients, demoPublish } from "@/lib/demo";
 import { AdministrationWorkspace } from "@/components/administration";
 import { PresetField } from "@/components/preset-field";
+import "./shell.css";
+import "./portal-grid.css";
 import {
   imagingBodyParts,
   qualitativeLabResults,
@@ -134,7 +134,30 @@ export function Portal({
       correction?: boolean;
     } | null>(null),
     [publishing, setPublishing] = useState<ClinicalRecord | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    const close = (e: Event) => {
+      const menu = document.querySelector<HTMLDetailsElement>(".admin-user");
+      if (!menu?.open) return;
+      if (e.type === "click" ? !menu.contains(e.target as Node) : (e as KeyboardEvent).key === "Escape")
+        menu.open = false;
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", close);
+    window.addEventListener("click", close);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", close);
+      window.removeEventListener("click", close);
+    };
+  }, []);
   const demoCache = useRef(new Map<string, PatientDetail>()),
     requestId = useRef(0),
     listRequestId = useRef(0);
@@ -206,8 +229,8 @@ export function Portal({
       window.removeEventListener("keydown", reset);
     };
   }, [demo, session]);
-  async function search(e: FormEvent) {
-    e.preventDefault();
+  async function search(e?: FormEvent) {
+    e?.preventDefault();
     const token = ++listRequestId.current;
     setError("");
     setBusy(true);
@@ -430,25 +453,80 @@ export function Portal({
         links={links}
       />
     );
+  const closeDetail = () => {
+    requestId.current++;
+    setDetail(null);
+    setEditor(null);
+    setPublishing(null);
+    setBusy(false);
+  };
   const records = detail?.records.filter((x) => !x.superseded_at) || [],
     published = records.filter((x) => x.status === "published"),
     drafts = records.filter((x) => x.status === "draft");
   return (
-    <div className={`workspace clinical-workspace${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-      <aside className="sidebar">
-        <Brand />
-        <div className="workspace-label">VÅRDPORTALEN</div>
+    <div className="workspace clinical-workspace">
+      <header className="admin-topbar">
+        <a className="admin-brand" href={demo ? "/demo" : links.clinical}>
+          <span className="brand-mark">
+            <Heart size={18} />
+          </span>
+          <span>
+            Go<span>Health</span>
+            <i>.</i>
+          </span>
+        </a>
+        <span className="admin-crumb-sep">/</span>
+        <span className="admin-org">Vårdteam</span>
+        <span className="admin-pill">
+          <LockKeyhole size={11} /> Skyddad
+        </span>
+        <form
+          className="admin-search"
+          role="search"
+          onSubmit={(e) => {
+            requestId.current++;
+            setDetail(null);
+            setEditor(null);
+            setPublishing(null);
+            void search(e);
+          }}
+        >
+          <Search size={16} />
+          <input
+            ref={searchRef}
+            aria-label="Sök patient"
+            placeholder="Sök patient…"
+            maxLength={120}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <kbd>⌘K</kbd>
+        </form>
+        <details className="admin-user">
+          <summary aria-label="Konto">
+            <span className="admin-avatar">{initialsOf(session.name)}</span>
+          </summary>
+          <div className="admin-menu">
+            <strong>{session.name}</strong>
+            <small>{session.role === "doctor" ? "Läkare" : "Vårdpersonal"}</small>
+            {session.admin && (
+              <a href={demo ? "/demo/admin" : links.administration}>
+                <ShieldCheck size={16} />
+                Administration
+              </a>
+            )}
+            <button onClick={logout}>
+              <LogOut size={16} />
+              Logga ut
+            </button>
+          </div>
+        </details>
+      </header>
+      <aside className="sidebar admin-rail">
         <nav id="clinical-navigation" aria-label="Vårdportalens meny">
-          {session.admin && (
-            <a className="nav-item" href={demo ? "/demo/admin" : links.administration} aria-label="Administration" title="Administration">
-              <ShieldCheck size={18} />
-              <span className="nav-label">Administration</span>
-            </a>
-          )}
           <button
             className="nav-item selected"
             aria-label={`Mina patienter (${patients.length})`}
-            title="Mina patienter"
             onClick={() => {
               requestId.current++;
               setDetail(null);
@@ -457,62 +535,13 @@ export function Portal({
               setBusy(false);
             }}
           >
-            <Users size={18} />
-            <span className="nav-label">Mina patienter</span><span className="nav-count">{patients.length}</span>
+            <Users size={17} />
+            <span className="nav-label">Mina patienter</span>
+            <span className="nav-count">{patients.length}</span>
           </button>
         </nav>
-        <div className="sidebar-bottom">
-          <div className="shield-note" title="Behörighetsstyrd åtkomst · Personligt konto · två faktorer">
-            <ShieldCheck size={19} />
-            <span>
-              Behörighetsstyrd åtkomst
-              <small>Personligt konto · två faktorer</small>
-            </span>
-          </div>
-          <div className="staff">
-            <div className="staff-avatar" title={session.name}>
-              <Stethoscope size={20} />
-            </div>
-            <div className="staff-details">
-              <strong>{session.name}</strong>
-              <small>
-                {session.role === "doctor" ? "Läkare" : "Vårdpersonal"}
-              </small>
-            </div>
-            <button title="Logga ut" aria-label="Logga ut" onClick={logout}>
-              <LogOut size={17} />
-            </button>
-          </div>
-        </div>
       </aside>
       <div className="main-shell">
-        <header className="topbar">
-          <div className="topbar-navigation">
-            <button
-              className="sidebar-toggle"
-              type="button"
-              aria-label={sidebarCollapsed ? "Expandera vänstermenyn" : "Fäll ihop vänstermenyn"}
-              title={sidebarCollapsed ? "Expandera vänstermenyn" : "Fäll ihop vänstermenyn"}
-              aria-expanded={!sidebarCollapsed}
-              aria-controls="clinical-navigation"
-              onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-            >
-              {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-            </button>
-            <span>
-              Vårdteam <ChevronRight size={14} /> Mina patienter{" "}
-              {detail && (
-                <>
-                  <ChevronRight size={14} />
-                  <strong>{detail.patient.display_name}</strong>
-                </>
-              )}
-            </span>
-          </div>
-          <span className="secure">
-            <LockKeyhole size={13} /> Skyddad arbetsyta
-          </span>
-        </header>
         {demo && (
           <div className="demo-banner">
             <span>
@@ -547,143 +576,103 @@ export function Portal({
               </button>
             </div>
           )}
+              <div className="wb-tabs" role="tablist" aria-label="Öppna vyer">
+                <button
+                  role="tab"
+                  aria-selected={!detail}
+                  className={!detail ? "active" : ""}
+                  onClick={closeDetail}
+                >
+                  <Users size={15} />
+                  Mina patienter
+                </button>
+                {detail && (
+                  <span role="tab" aria-selected className="active wb-patient-tab">
+                    <span className="wb-avatar">{initialsOf(detail.patient.display_name)}</span>
+                    {detail.patient.display_name}
+                    <button aria-label="Stäng patient" onClick={closeDetail}>
+                      <X size={14} />
+                    </button>
+                  </span>
+                )}
+              </div>
           {!detail ? (
-            <>
-              <div className="page-heading">
-                <div>
-                  <h1>
-                    Mina patienter<span>.</span>
-                  </h1>
-                </div>
-                <div className="round-symbol">
-                  <Stethoscope size={28} />
-                </div>
-              </div>
-              <div className="stats">
-                <Stat
-                  label="Patienter i listan"
-                  value={String(patients.length)}
-                  icon={<Users />}
-                />
-                <Stat
-                  label="Aktiv arbetsyta"
-                  value="Patientuppföljning"
-                  icon={<ClipboardList />}
-                />
-                <Stat
-                  label="Åtkomst"
-                  value="Dina vårdrelationer"
-                  icon={<ShieldCheck />}
-                />
-              </div>
-              <section className="panel">
-                <div className="panel-heading">
-                  <div>
-                    <h2>Patientöversikt</h2>
-                    <p>Sök bland de patienter du har behörighet att följa.</p>
-                  </div>
-                  <span className="pill">{patients.length} patienter</span>
-                </div>
-                <form className="search" onSubmit={search}>
-                  <Search size={18} />
+            <div className="grid-view">
+              <div className="grid-toolbar">
+                <form className="grid-filter" onSubmit={search}>
+                  <Search size={16} />
                   <input
-                    aria-label="Sök patient"
-                    placeholder="Sök på namn eller exakt personnummer"
+                    aria-label="Filtrera patienter"
+                    placeholder="Filtrera på namn eller exakt personnummer…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     maxLength={120}
                   />
-                  <button className="button secondary" disabled={busy}>
-                    Sök
-                  </button>
                 </form>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Patient</th>
-                        <th>Identitet</th>
-                        <th>Senaste datasynk</th>
-                        <th />
+                <button
+                  className="grid-btn"
+                  type="button"
+                  disabled={busy}
+                  aria-label="Uppdatera"
+                  onClick={() => void search()}
+                >
+                  <RefreshCw size={15} />
+                </button>
+              </div>
+              <div className="grid-scroll">
+                <table className="grid">
+                  <thead>
+                    <tr>
+                      <th>Patient <i>text</i></th>
+                      <th>Personnummer <i>text</i></th>
+                      <th>Identitet <i>status</i></th>
+                      <th>Senaste datasynk <i>tid</i></th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {patients.map((p) => (
+                      <tr key={p.id} onClick={() => open(p)}>
+                        <td>
+                          <button className="patient-link" onClick={(e) => { e.stopPropagation(); void open(p); }}>
+                            <span className="patient-avatar">{initialsOf(p.display_name)}</span>
+                            <strong>{p.display_name}</strong>
+                          </button>
+                        </td>
+                        <td>{p.identity_label}</td>
+                        <td>
+                          <span className={"grid-chip " + (p.identity_verified ? "ok" : "warn")}>
+                            {p.identity_verified ? "Verifierad" : "Kontroll återstår"}
+                          </span>
+                        </td>
+                        <td>
+                          {p.last_sync_at ? (
+                            timestamp(p.last_sync_at)
+                          ) : (
+                            <span className="muted">Ingen synk ännu</span>
+                          )}
+                        </td>
+                        <td className="grid-open">
+                          <ArrowRight size={16} aria-label={`Öppna ${p.display_name}`} />
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {patients.map((p) => (
-                        <tr key={p.id}>
-                          <td>
-                            <button
-                              className="patient-link"
-                              onClick={() => open(p)}
-                            >
-                              <span className="patient-avatar">
-                                {p.display_name
-                                  .split(" ")
-                                  .map((x) => x[0])
-                                  .slice(0, 2)
-                                  .join("")}
-                              </span>
-                              <strong>{p.display_name}</strong>
-                            </button>
-                          </td>
-                          <td>
-                            <div>{p.identity_label}</div>
-                            <small
-                              className={
-                                p.identity_verified ? "muted" : "warning"
-                              }
-                            >
-                              {p.identity_verified
-                                ? "Verifierad kontokoppling"
-                                : "Identitetskontroll återstår"}
-                            </small>
-                          </td>
-                          <td>
-                            {p.last_sync_at ? (
-                              timestamp(p.last_sync_at)
-                            ) : (
-                              <span className="muted">Ingen synk ännu</span>
-                            )}
-                          </td>
-                          <td>
-                            <button
-                              className="icon-button"
-                              aria-label={`Öppna ${p.display_name}`}
-                              onClick={() => open(p)}
-                            >
-                              <ArrowRight size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
                 {!patients.length && (
                   <Empty
                     title="Inga patienter att visa"
                     description="En administratör behöver koppla ditt personalkonto till verifierade patienter."
                   />
                 )}
-              </section>
-              <p className="footnote">
-                Personnummer används för sökning. Åtkomst styrs alltid av din
-                aktuella vårdrelation.
-              </p>
-            </>
+              </div>
+              <div className="grid-footer">
+                <span>Sida 1 av 1</span>
+                <span>{patients.length} {patients.length === 1 ? "patient" : "patienter"}</span>
+              </div>
+            </div>
           ) : (
             <>
-              <button
-                className="back"
-                onClick={() => {
-                  requestId.current++;
-                  setDetail(null);
-                  setEditor(null);
-                  setPublishing(null);
-                  setBusy(false);
-                }}
-              >
-                <ArrowLeft size={16} /> Patientöversikt
-              </button>
               <div className="patient-heading">
                 <div className="patient-avatar large">
                   {detail.patient.display_name
@@ -693,7 +682,6 @@ export function Portal({
                     .join("")}
                 </div>
                 <div>
-                  <p className="eyebrow">PATIENTPROFIL</p>
                   <h1>{detail.patient.display_name}</h1>
                   <div className="identity">
                     {detail.patient.identity_label}
@@ -1006,6 +994,16 @@ export function Portal({
   );
 }
 
+function initialsOf(name: string) {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase())
+      .join("") || "?"
+  );
+}
 function Brand() {
   return (
     <div className="brand">
