@@ -1,11 +1,19 @@
 import { administrationCommand, portalSessionReady } from "@/lib/administration";
 import { normalizeSearch } from "@/lib/model";
 import { overviewRequest } from "@/lib/overview";
+import { pipelineDecision, pipelineRequest } from "@/lib/pipeline";
 import { authorized, ApiError, failure, json, requestBody } from "@/lib/server";
 export async function POST(request: Request) {
   try {
     const input = await requestBody(request);
-    const body = input?.action === "overview" ? overviewRequest.parse(input) : administrationCommand.parse(input);
+    const body =
+      input?.action === "overview"
+        ? overviewRequest.parse(input)
+        : input?.action === "pipeline"
+          ? pipelineRequest.parse(input)
+          : input?.action === "pipelineDecision"
+            ? pipelineDecision.parse(input)
+            : administrationCommand.parse(input);
     const { db, session } = await authorized();
     if (!session.admin || !portalSessionReady(session))
       throw new ApiError(403, "Logga in med ditt administratörskonto för att fortsätta.");
@@ -14,6 +22,25 @@ export async function POST(request: Request) {
         p_organization_id: body.organizationId,
         p_member_portal: body.memberPortal,
         p_member_offset: body.memberOffset,
+      });
+      if (result.error) throw result.error;
+      return json(result.data);
+    }
+    if (body.action === "pipeline") {
+      const result = await db.rpc("clinician_patient_pipeline", {
+        p_organization_id: body.organizationId,
+      });
+      if (result.error) throw result.error;
+      return json(result.data);
+    }
+    if (body.action === "pipelineDecision") {
+      const result = await db.rpc("clinician_decide_pipeline", {
+        p_organization_id: body.organizationId,
+        p_kind: body.kind,
+        p_id: body.id,
+        p_decision: body.decision,
+        p_revision: body.revision,
+        p_attested: body.identityAttested,
       });
       if (result.error) throw result.error;
       return json(result.data);

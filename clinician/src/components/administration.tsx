@@ -104,6 +104,10 @@ const auditNames: Record<string, string> = {
   "administration.assignment": "Patienttilldelning uppdaterad",
   "administration.careTeam": "Teamkoppling uppdaterad",
   "invitation.accept": "Personalbehörighet aktiverad",
+  "administration.signupapprove": "Patientregistrering godkänd",
+  "administration.signupreject": "Patientregistrering avslagen",
+  "administration.applicationhandled": "Ansökan hanterad",
+  "administration.applicationdismissed": "Ansökan avfärdad",
 };
 class AdministrationError extends Error {
   constructor(
@@ -442,7 +446,7 @@ export function AdministrationWorkspace({
               {notice}
             </div>
           )}
-          {tab === "newpatients" ? <PatientsOverview registered={data?.patients.filter((p) => p.active).length ?? 0} /> : tab === "overview" ? <Dashboard data={data} busy={busy} onTab={setTab} /> : tab === "system" ? <SystemOverview
+          {tab === "newpatients" ? <PatientsOverview key={organizationId} organizationId={organizationId} demo={demo} registeredFallback={data?.patients.filter((p) => p.active).length ?? 0} /> : tab === "overview" ? <Dashboard data={data} busy={busy} onTab={setTab} /> : tab === "system" ? <SystemOverview
             key={organizationId}
             organizationId={organizationId}
             demo={demo}
