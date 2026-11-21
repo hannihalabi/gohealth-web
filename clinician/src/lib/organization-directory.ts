@@ -56,3 +56,15 @@ export async function readOrganizationDirectory(
     checkedAt: administration.first.checkedAt,
   };
 }
+
+export function groupCareTeams(members: Member[]) {
+  const ordered = (items: Member[]) => [...items].sort((a, b) => Number(b.active) - Number(a.active) || a.display_name.localeCompare(b.display_name, "sv"));
+  const doctors = ordered(members.filter((m) => m.role === "doctor"));
+  const nurses = ordered(members.filter((m) => m.role === "nurse"));
+  const validDoctorIds = new Set(doctors.filter((m) => m.active).map((m) => m.user_id));
+  return {
+    administrators: ordered(members.filter((m) => m.role === "admin")),
+    teams: doctors.map((doctor) => ({ doctor, nurses: nurses.filter((n) => n.active && doctor.active && n.doctor_id === doctor.user_id) })),
+    unassigned: nurses.filter((n) => !n.active || !n.doctor_id || !validDoctorIds.has(n.doctor_id)),
+  };
+}

@@ -29,6 +29,13 @@ const email = z
   .max(254)
   .transform((value) => value.trim().toLowerCase());
 export const administrationCommand = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("careTeam"),
+    ...organization,
+    nurseId: z.uuid(),
+    doctorId: z.uuid().nullable(),
+    revision: z.number().int().min(0),
+  }).strict(),
   z
     .object({
       action: z.literal("snapshot"),
@@ -90,6 +97,9 @@ export const administrationCommand = z.discriminatedUnion("action", [
 ]);
 export type AdminCommand = z.infer<typeof administrationCommand>;
 export type Member = {
+  patient_count?: number | null;
+  doctor_id?: string | null;
+  team_revision?: number;
   user_id: string;
   display_name: string;
   role: StaffRole;

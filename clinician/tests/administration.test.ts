@@ -79,3 +79,12 @@ test("invitation state distinguishes expired, cancelled and accepted records", (
     "Aktiverad",
   );
 });
+
+test("care team edits require clinic scope, explicit doctor selection and a revision", () => {
+  const command = { action: "careTeam", organizationId,
+    nurseId: "10000000-0000-4000-8000-000000000003", doctorId: null, revision: 0 };
+  assert.equal(administrationCommand.safeParse(command).success, true);
+  assert.equal(administrationCommand.safeParse({ ...command, doctorId: undefined }).success, false);
+  assert.equal(administrationCommand.safeParse({ ...command, revision: -1 }).success, false);
+  assert.equal(administrationCommand.safeParse({ ...command, grantPatientAccess: true }).success, false);
+});

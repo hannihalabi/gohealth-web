@@ -1,0 +1,8 @@
+.administration-workspace .content { padding-top: 28px; }
+.administration-workspace .admin-context { margin-bottom: 24px; }
+.administration-workspace .page-heading { margin-bottom: 24px; }
+.administration-workspace .sidebar-bottom .staff { border-top: 1px solid var(--line); padding-top: 18px; }
+.admin-details { margin: 24px 0; border: 1px solid var(--line); border-radius: 15px; background: white; }
+.admin-details > summary { padding: 18px 22px; font-size: 14px; font-weight: 600; color: var(--plum); cursor: pointer; }
+.admin-details > .panel { border: 0; margin: 0; }
+.admin-details[open] > summary { border-bottom: 1px solid var(--line); }
