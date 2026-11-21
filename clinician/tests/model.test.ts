@@ -9,12 +9,30 @@ import {
   normalizeSearch,
   validatePayload,
 } from "../src/lib/model";
+import { vaccineChoices, vaccineDoseChoices } from "../src/lib/registration-options";
+
+test("vaccination presets provide different dose numbers for different products", () => {
+  const numberChoices = (vaccine: string) => vaccineDoseChoices(vaccine)
+    .map((option) => typeof option === "string" ? option : option.value)
+    .filter((value) => /^\d+$/.test(value));
+  assert.deepEqual(numberChoices("Rotarix"), ["1", "2"]);
+  assert.deepEqual(numberChoices("RotaTeq"), ["1", "2", "3"]);
+  assert.deepEqual(numberChoices("TBE"), ["1", "2", "3", "4"]);
+  assert.ok(vaccineDoseChoices("TBE").some((option) => typeof option !== "string" && option.value === "påfyllnad"));
+  const values = vaccineChoices.map((option) => typeof option === "string" ? option : option.value);
+  assert.equal(new Set(values).size, values.length);
+});
+
 test("sampling timestamps reject overflow dates and require an explicit time", () => {
   assert.throws(() => parseLocalDateTime("2026-02-30 08:00"));
   assert.throws(() => parseLocalDateTime("2026-11-17"));
   assert.equal(
     Number.isFinite(Date.parse(parseLocalDateTime("2026-11-16 08:30"))),
     true,
+  );
+  assert.equal(
+    parseLocalDateTime("2026-11-16T08:30"),
+    new Date(2026, 10, 16, 8, 30).toISOString(),
   );
 });
 test("imaging dates beyond the database tolerance produce a field-specific error", () => {

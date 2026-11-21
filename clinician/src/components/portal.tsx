@@ -42,6 +42,16 @@ import {
 } from "@/lib/model";
 import { demoDetail, demoPatients, demoPublish } from "@/lib/demo";
 import { AdministrationWorkspace } from "@/components/administration";
+import { PresetField } from "@/components/preset-field";
+import {
+  imagingBodyParts,
+  qualitativeLabResults,
+  registrationSources,
+  registrationTitles,
+  vaccinationLocations,
+  vaccineChoices,
+  vaccineDoseChoices,
+} from "@/lib/registration-options";
 import { portalSessionReady, type PortalSession as Session } from "@/lib/administration";
 import { localPortalLinks, type PortalLinks } from "@/lib/portal-origins";
 import { CT_ARCHIVE_MAX_BYTES } from "@/lib/ct-archive";
@@ -1541,25 +1551,14 @@ function Editor({
   onSave: (payload: unknown, reason: string) => Promise<void>;
 }) {
   const p = record?.payload;
-  const [title, setTitle] = useState(
-      p?.title ||
-        {
-          lab: "Blodprover",
-          vaccination: "Vaccination",
-          imaging: "Bildutlåtande",
-        }[kind],
-    ),
+  const recordedTime = p ? new Date(p.sampledAt) : undefined;
+  const recordedLocalTime = recordedTime
+    ? new Date(recordedTime.getTime() - recordedTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+    : "";
+  const [title, setTitle] = useState(p?.title || registrationTitles[kind][0]),
     [source, setSource] = useState(p?.source || ""),
-    [sampled, setSampled] = useState(
-      p
-        ? new Date(
-            new Date(p.sampledAt).getTime() -
-              new Date(p.sampledAt).getTimezoneOffset() * 60000,
-          )
-            .toISOString()
-            .slice(0, 16)
-        : "",
-    ),
+    [recordDate, setRecordDate] = useState(recordedLocalTime.slice(0, 10)),
+    [recordTime, setRecordTime] = useState(recordedLocalTime.slice(11)),
     [comment, setComment] = useState(p?.comment || ""),
     [reason, setReason] = useState(record?.correction_reason || ""),
     [rows, setRows] = useState<Observation[]>(
@@ -1569,7 +1568,7 @@ function Editor({
     [dose, setDose] = useState(p?.dose || ""),
     [batch, setBatch] = useState(p?.batch || ""),
     [place, setPlace] = useState(p?.location || ""),
-    [modality, setModality] = useState(p?.modality || "CT"),
+    [modality, setModality] = useState<NonNullable<Payload["modality"]> | "">(p?.modality || ""),
     [bodyPart, setBodyPart] = useState(p?.bodyPart || ""),
     [conclusion, setConclusion] = useState(p?.conclusion || ""),
     [studyId, setStudyId] = useState(p?.studyId || ""),
@@ -1580,8 +1579,10 @@ function Editor({
     [saving, setSaving] = useState(false);
   const archiveUpload = useRef<CtArchiveUpload | undefined>(undefined);
   const archiveInput = useRef<HTMLInputElement>(null);
-  const sampledInput = useRef<HTMLInputElement>(null);
+  const dateInput = useRef<HTMLInputElement>(null);
   const needsReason = correction || !!record?.replaces_id;
+  const eventName = { lab: "Provtagning", vaccination: "Vaccination", imaging: "Undersökning" }[kind];
+  const nextAnalysis = catalog.find((analysis) => !rows.some((row) => row.code === analysis.code));
   function discardUpload(clearInput = true) {
     const id = archiveUpload.current?.id;
     archiveUpload.current = undefined;
@@ -1605,10 +1606,13 @@ function Editor({
     try {
       if (needsReason && !reason.trim())
         throw new Error("Ange orsaken till rättelsen.");
+      const selectedLocalTime = `${recordDate}T${recordTime}`;
       const base = {
         title,
         source,
-        sampledAt: parseLocalDateTime(sampled),
+        sampledAt: p && selectedLocalTime === recordedLocalTime
+          ? p.sampledAt
+          : parseLocalDateTime(selectedLocalTime),
         comment,
       };
       const payload =
@@ -1638,9 +1642,9 @@ function Editor({
         archiveUpload.current = undefined;
         return;
       }
-      await onSave(payload, reason);
+      await onSave(validated, reason);
     } catch (e) {
-      if (e instanceof ClinicalDateError) sampledInput.current?.focus();
+      if (e instanceof ClinicalDateError) dateInput.current?.focus();
       setError(
         e instanceof Error && e.name !== "ZodError"
           ? e.message
@@ -1673,49 +1677,35 @@ function Editor({
         )}
         <div className="form-grid">
           <label>
-            Titel
+            {`${eventName}sdatum`}
             <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              ref={dateInput}
+              type="date"
               required
-              maxLength={160}
+              value={recordDate}
+              onChange={(e) => setRecordDate(e.target.value)}
             />
           </label>
           <label>
-            {kind === "lab"
-              ? "Provtagningstid"
-              : kind === "vaccination"
-                ? "Vaccinationstid"
-                : "Undersökningstid"}
+            {`${eventName}stid`}
             <input
-              ref={sampledInput}
-              type="text"
-              placeholder="ÅÅÅÅ-MM-DD TT:MM"
-              maxLength={16}
-              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}[ T][0-9]{2}:[0-9]{2}"
+              type="time"
               required
-              value={sampled}
-              onChange={(e) => setSampled(e.target.value)}
+              value={recordTime}
+              onChange={(e) => setRecordTime(e.target.value)}
             />
           </label>
-          <label className="full">
-            {kind === "lab"
-              ? "Laboratorium / originalkälla"
-              : "Uppgifternas källa"}
-            <input
-              required
-              maxLength={160}
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-              placeholder="Ange källan till uppgifterna"
-            />
-          </label>
+          <PresetField label="Titel" value={title} onChange={setTitle}
+            options={registrationTitles[kind]} otherLabel="Egen titel" maxLength={160} />
+          <PresetField label={kind === "lab" ? "Laboratorium / originalkälla" : "Uppgifternas källa"}
+            value={source} onChange={setSource} options={registrationSources[kind]}
+            placeholder="Välj källa" otherLabel="Annan källa" maxLength={160} />
         </div>
         {kind === "lab" ? (
           <>
             <div className="editor-rows">
               {rows.map((row, i) => (
-                <div className="editor-row" key={i}>
+                <div className="editor-row" key={row.code}>
                   <div className="editor-row-top">
                     <strong>Analys {i + 1}</strong>
                     <button
@@ -1740,55 +1730,55 @@ function Editor({
                           )
                         }
                       >
-                        {catalog.map((c) => (
+                        {catalog.filter((c) => c.code === row.code || !rows.some((r) => r.code === c.code)).map((c) => (
                           <option key={c.code} value={c.code}>
                             {c.name}
                           </option>
                         ))}
                       </select>
                     </label>
+                    <PresetField key={row.comparator === "text" ? "qualitative" : "numeric"}
+                      label="Enhet" value={row.unit} onChange={(unit) => edit(i, { unit })}
+                      options={catalog.filter((c) => c.code === row.code).map((c) => c.unit)}
+                      placeholder={row.comparator === "text" ? "Ingen enhet" : "Välj enhet"}
+                      otherLabel="Annan enhet" maxLength={80} required={row.comparator !== "text"} />
                     <label>
-                      Enhet
-                      <input
-                        required={row.comparator !== "text"}
-                        value={row.unit}
-                        onChange={(e) => edit(i, { unit: e.target.value })}
-                        maxLength={80}
-                      />
+                      Resultattyp
+                      <select
+                        aria-label={`Resultattyp analys ${i + 1}`}
+                        value={row.comparator}
+                        onChange={(e) => {
+                          const comparator = e.target.value as Observation["comparator"];
+                            if ((comparator === "text") !== (row.comparator === "text")) {
+                              const unit = comparator === "text" ? "" : newObservation(row.code).unit;
+                              edit(i, { comparator, value: "", unit });
+                            } else {
+                              edit(i, { comparator });
+                            }
+                        }}
+                      >
+                        {["=", "<", ">", "<=", ">=", "text"].map((x) => (
+                          <option key={x} value={x}>{x === "text" ? "Kvalitativt svar" : x}</option>
+                        ))}
+                      </select>
                     </label>
-                    <label>
-                      Resultat
-                      <div className="result-input">
-                        <select
-                          aria-label={`Resultattyp analys ${i + 1}`}
-                          value={row.comparator}
-                          onChange={(e) =>
-                            edit(i, {
-                              comparator: e.target
-                                .value as Observation["comparator"],
-                            })
-                          }
-                        >
-                          {["=", "<", ">", "<=", ">=", "text"].map((x) => (
-                            <option key={x}>{x}</option>
-                          ))}
-                        </select>
+                    {row.comparator === "text" ? (
+                      <PresetField label="Resultat" value={row.value} onChange={(value) => edit(i, { value })}
+                        options={qualitativeLabResults} otherLabel="Annat svar" maxLength={120} />
+                    ) : (
+                      <label>
+                        Resultat
                         <input
                           aria-label={`Resultat analys ${i + 1}`}
+                          inputMode="decimal"
+                          pattern="-?[0-9]+([.,][0-9]+)?"
                           required
                           value={row.value}
-                          onChange={(e) =>
-                            edit(i, {
-                              value:
-                                row.comparator === "text"
-                                  ? e.target.value
-                                  : e.target.value.replace(",", "."),
-                            })
-                          }
+                          onChange={(e) => edit(i, { value: e.target.value.replace(",", ".") })}
                           maxLength={120}
                         />
-                      </div>
-                    </label>
+                      </label>
+                    )}
                     <label>
                       Referensintervall
                       <div className="result-input">
@@ -1841,16 +1831,10 @@ function Editor({
             <button
               type="button"
               className="button secondary"
-              disabled={rows.length >= 100}
-              onClick={() =>
-                setRows([
-                  ...rows,
-                  newObservation(
-                    catalog.find((c) => !rows.some((r) => r.code === c.code))
-                      ?.code || "tsh",
-                  ),
-                ])
-              }
+              disabled={!nextAnalysis}
+              onClick={() => {
+                if (nextAnalysis) setRows([...rows, newObservation(nextAnalysis.code)]);
+              }}
             >
               <Plus size={15} />
               Lägg till analys
@@ -1862,24 +1846,13 @@ function Editor({
           </>
         ) : kind === "vaccination" ? (
           <div className="form-grid">
-            <label>
-              Vaccin
-              <input
-                required
-                value={vaccine}
-                onChange={(e) => setVaccine(e.target.value)}
-                maxLength={120}
-              />
-            </label>
-            <label>
-              Dos / dosbeskrivning
-              <input
-                required
-                value={dose}
-                onChange={(e) => setDose(e.target.value)}
-                maxLength={80}
-              />
-            </label>
+            <PresetField label="Vaccin" value={vaccine} onChange={(value) => {
+              setVaccine(value);
+              setDose("");
+            }} options={vaccineChoices} placeholder="Välj vaccin" otherLabel="Annat vaccin" maxLength={120} />
+            <PresetField key={vaccine} label="Dos" value={dose} onChange={setDose}
+              options={vaccineDoseChoices(vaccine)} placeholder={vaccine.trim() ? "Välj dos" : "Välj vaccin först"}
+              otherLabel="Annan dos" maxLength={80} disabled={!vaccine.trim()} />
             <label>
               Batchnummer, om känt
               <input
@@ -1888,15 +1861,8 @@ function Editor({
                 maxLength={80}
               />
             </label>
-            <label>
-              Vaccinationsställe
-              <input
-                required
-                value={place}
-                onChange={(e) => setPlace(e.target.value)}
-                maxLength={160}
-              />
-            </label>
+            <PresetField label="Vaccinationsställe" value={place} onChange={setPlace}
+              options={vaccinationLocations} otherLabel="Annat vaccinationsställe" maxLength={160} />
           </div>
         ) : (
           <div className="form-grid">
@@ -1904,26 +1870,23 @@ function Editor({
               Modalitet
               <select
                 value={modality}
+                required
                 disabled={saving}
                 onChange={(e) => {
                   setModality(e.target.value as typeof modality);
                   if (e.target.value !== "CT") discardUpload();
                 }}
               >
-                {["CT", "MR", "US", "XR", "OTHER"].map((x) => (
-                  <option key={x}>{x}</option>
-                ))}
+                <option value="" disabled>Välj undersökningstyp</option>
+                <option value="CT">Datortomografi (DT/CT)</option>
+                <option value="MR">Magnetkamera (MR)</option>
+                <option value="US">Ultraljud (UL)</option>
+                <option value="XR">Konventionell röntgen</option>
+                <option value="OTHER">Annan modalitet</option>
               </select>
             </label>
-            <label>
-              Kroppsdel
-              <input
-                required
-                value={bodyPart}
-                onChange={(e) => setBodyPart(e.target.value)}
-                maxLength={120}
-              />
-            </label>
+            <PresetField label="Kroppsdel" value={bodyPart} onChange={setBodyPart}
+              options={imagingBodyParts} otherLabel="Annan kroppsdel" maxLength={120} />
             <label className="full">
               Undersöknings-ID från bildtjänsten, om ansluten
               <input
