@@ -45,3 +45,14 @@ table.grid .patient-avatar { width: 26px; height: 26px; font-size: 10px; border-
 .remove-panel p { margin: 0; font-size: 14px; color: #5d3a3d; }
 .remove-panel label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
 .remove-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* Attestation queue. */
+.grid-title { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; padding: 8px 0; }
+.grid-spacer { flex: 1; }
+.grid-sub { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.grid-kind { display: inline-flex; align-items: center; gap: 8px; color: var(--plum); font-weight: 600; }
+.grid-chip.bad { color: #a33a3a; background: #fbe9e9; }
+.grid-clear { display: grid; place-items: center; gap: 6px; padding: 64px 24px; text-align: center; color: var(--muted); }
+.grid-clear svg { color: #1f7a5a; }
+.grid-clear strong { color: var(--ink); }
+table.grid td.grid-open { width: 120px; }
+.nav-count.alert { background: #fbf0dc; color: #8a5a12; font-weight: 700; }

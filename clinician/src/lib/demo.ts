@@ -83,9 +83,16 @@ export function demoDetail(patient: Patient): PatientDetail {
       archiveId: "00000000-0000-4000-8000-0000000001a2",
     },
   };
+  const draft: ClinicalRecord = {
+    ...record,
+    id: "00000000-0000-4000-8000-000000000103",
+    status: "draft",
+    published_at: null,
+    payload: { ...record.payload, title: "Vitaminstatus", observations: [] },
+  };
   return {
     patient,
-    records: active ? [record, mr] : [],
+    records: active ? [record, mr, draft] : [],
     vitals: active
       ? Array.from({ length: 14 }, (_, i) => ({
           id: `demo-${i}`,

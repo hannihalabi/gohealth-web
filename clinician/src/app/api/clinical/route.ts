@@ -10,6 +10,7 @@ const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("vitals_page"), patientId: z.uuid(), kind: z.string().min(1).max(200), cursor: z.object({ at: z.iso.datetime({offset:true}), id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) }).strict().nullable() }).strict(),
   z.object({ action: z.literal("list"), query: z.string().max(120) }).strict(),
   z.object({ action: z.literal("patient"), patientId: z.uuid() }).strict(),
+  z.object({ action: z.literal("attestations") }).strict(),
   z.object({
     action: z.literal("vital_history"),
     patientId: z.uuid(),
@@ -62,6 +63,9 @@ export async function POST(request: Request) {
         result = await db.rpc("clinician_list_patients", {
           p_query: normalizeSearch(body.query),
         });
+        break;
+      case "attestations":
+        result = await db.rpc("clinician_pending_attestations");
         break;
       case "patient":
         result = await db.rpc("clinician_patient", {

@@ -46,6 +46,14 @@ insert into an_fixture select 'nurse_draft', public.clinician_save_record('a9000
 select pg_temp.an_claims(4);
 select pg_temp.an_assert(exists (select 1 from jsonb_array_elements(public.gohealth_patient_data()->'records') r where r->'payload'->>'title' = 'Published MR'), 'patient sees the published examination');
 
+-- The attestation queue shows every waiting draft to the assigned care team, and to nobody else.
+select pg_temp.an_claims(1);
+select pg_temp.an_assert((select count(*) = 1 and bool_and(r->>'created_by_name' = 'Nurse' and r->'payload'->>'title' = 'Draft MR' and (r->>'identity_verified')::boolean)
+  from jsonb_array_elements(public.clinician_pending_attestations()) r), 'the doctor sees the nurse draft waiting for attestation');
+select pg_temp.an_claims(3);
+select pg_temp.an_assert(public.clinician_pending_attestations() = '[]'::jsonb, 'an unassigned doctor sees no waiting drafts');
+select pg_temp.an_claims(4);
+select pg_temp.an_assert(public.clinician_pending_attestations() = '[]'::jsonb, 'a patient account sees no waiting drafts');
 select pg_temp.an_claims(3);
 select pg_temp.an_denied(format('select public.clinician_annul_record(%L, ''Fel patient'', ''Ta bort'')', value->>'id'), '42501', 'unassigned clinician cannot remove') from an_fixture where label = 'published';
 select pg_temp.an_claims(2);
@@ -62,7 +70,8 @@ select pg_temp.an_claims(4);
 select pg_temp.an_assert(not exists (select 1 from jsonb_array_elements(public.gohealth_patient_data()->'records') r where r->'payload'->>'title' = 'Published MR'), 'the patient no longer sees a removed examination');
 select pg_temp.an_claims(2);
 select pg_temp.an_assert((public.clinician_annul_record((value->>'id')::uuid, 'Skapad av misstag', 'Ta bort')->>'ok')::boolean, 'a nurse can remove their own draft') from an_fixture where label = 'nurse_draft';
+select pg_temp.an_assert(public.clinician_pending_attestations() = '[]'::jsonb, 'a removed draft leaves the attestation queue');
 reset role;
 select pg_temp.an_assert((select count(*) = 2 from clinical_private.audit where action = 'record.annul'), 'each removal is audited once');
 select pg_temp.an_denied('update clinical_private.records set payload = payload || ''{"title":"Changed"}''::jsonb where annulled_at is not null and status = ''published''', '42501', 'a removed published record is still immutable');
-select 'Record removal tests passed: doctor and draft rules, confirmation word, reason, patient visibility, audit and immutability.' as result;
+select 'Record removal and attestation queue tests passed: doctor and draft rules, confirmation word, reason, patient visibility, queue scope, audit and immutability.' as result;

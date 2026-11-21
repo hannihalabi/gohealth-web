@@ -91,6 +91,7 @@ try {
   await db.exec(await readFile(new URL("../../supabase/migrations/20261121200000_patient_pipeline.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../../supabase/migrations/20261121220000_imaging_images_and_removal.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../../supabase/migrations/20261121230000_annul_records.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../../supabase/migrations/20261121240000_pending_attestations.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../../supabase/migrations/20261121203559_automatic_health_sync.sql", import.meta.url), "utf8"));
   for (const suite of ["clinician_core.sql","clinician_administration.sql","clinician_portal_password_beta.sql","clinician_ct_archives.sql","administration_overview.sql","health_history.sql","care_teams.sql","patient_pipeline.sql","record_annulment.sql","automatic_health_sync.sql"]) {
     await db.exec("begin");

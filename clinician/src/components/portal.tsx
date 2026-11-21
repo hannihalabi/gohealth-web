@@ -1,11 +1,12 @@
 "use client";
 import { VitalsWorkspace } from "@/components/vitals-workspace";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Activity,
   ArrowLeft,
   ArrowRight,
   Check,
+  ClipboardCheck,
   CheckCircle2,
   RefreshCw,
   ClipboardList,
@@ -46,6 +47,7 @@ import { demoDetail, demoPatients, demoPublish } from "@/lib/demo";
 import { AdministrationWorkspace } from "@/components/administration";
 import { PresetField } from "@/components/preset-field";
 import { ImagingWorkspace } from "@/components/imaging-workspace";
+import { AttestationGrid, type PendingItem } from "@/components/attestation-grid";
 import "./shell.css";
 import "./portal-grid.css";
 import {
@@ -135,6 +137,12 @@ export function Portal({
       correction?: boolean;
     } | null>(null),
     [publishing, setPublishing] = useState<ClinicalRecord | null>(null);
+  const [view, setView] = useState<"patients" | "attest">("patients"),
+    [attest, setAttest] = useState<PendingItem[] | null>(null),
+    [attestError, setAttestError] = useState(""),
+    [attestLoading, setAttestLoading] = useState(false),
+    [demoTick, setDemoTick] = useState(0),
+    [review, setReview] = useState<{ patientId: string; recordId: string; kind: Kind } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -254,6 +262,56 @@ export function Portal({
       if (token === listRequestId.current) setBusy(false);
     }
   }
+  const loadAttest = useCallback(async () => {
+    if (!session) return;
+    setAttestLoading(true);
+    try {
+      if (demo) {
+        const drafts = demoPatients.flatMap((p) =>
+          (demoCache.current.get(p.id) || demoDetail(p)).records
+            .filter((r) => r.status === "draft" && !r.superseded_at)
+            .map((r): PendingItem => ({
+              id: r.id,
+              patient_id: p.id,
+              display_name: p.display_name,
+              identity_label: p.identity_label,
+              identity_verified: p.identity_verified,
+              kind: r.kind,
+              version: r.version,
+              revision: r.revision,
+              is_correction: !!r.replaces_id,
+              created_at: r.created_at,
+              created_by_name: session.name,
+              payload: r.payload,
+            })),
+        );
+        setAttest(drafts);
+      } else setAttest(await api("clinical", { action: "attestations" }));
+      setAttestError("");
+    } catch (e) {
+      setAttestError((e as Error).message);
+    } finally {
+      setAttestLoading(false);
+    }
+  }, [demo, session]);
+  useEffect(() => {
+    void loadAttest();
+    const refresh = () => void loadAttest();
+    window.addEventListener("focus", refresh);
+    const timer = setInterval(refresh, 60000);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      clearInterval(timer);
+    };
+  }, [loadAttest, demoTick]);
+  useEffect(() => {
+    // Opening an item from the queue: jump to its tab and, for doctors, straight into review.
+    if (!review || !detail || detail.patient.id !== review.patientId) return;
+    const record = detail.records.find((r) => r.id === review.recordId);
+    setTab(review.kind);
+    if (record && record.status === "draft" && session?.role === "doctor") setPublishing(record);
+    setReview(null);
+  }, [review, detail, session]);
   async function open(patient: Patient) {
     const token = ++requestId.current;
     setDetail(null);
@@ -281,9 +339,11 @@ export function Portal({
           patientId,
         });
     if (data && token === requestId.current) setDetail(data);
+    void loadAttest();
   }
   function storeDemo(data: PatientDetail) {
     demoCache.current.set(data.patient.id, data);
+    setDemoTick((t) => t + 1);
     setDetail(data);
   }
   async function save(payload: unknown, reason: string) {
@@ -544,19 +604,29 @@ export function Portal({
       <aside className="sidebar admin-rail">
         <nav id="clinical-navigation" aria-label="Vårdportalens meny">
           <button
-            className="nav-item selected"
+            className={"nav-item" + (view === "patients" ? " selected" : "")}
             aria-label={`Mina patienter (${patients.length})`}
             onClick={() => {
-              requestId.current++;
-              setDetail(null);
-              setEditor(null);
-              setPublishing(null);
-              setBusy(false);
+              setView("patients");
+              closeDetail();
             }}
           >
             <Users size={17} />
             <span className="nav-label">Mina patienter</span>
             <span className="nav-count">{patients.length}</span>
+          </button>
+          <button
+            className={"nav-item" + (view === "attest" ? " selected" : "")}
+            aria-label={`Attestering (${attest?.length ?? 0})`}
+            onClick={() => {
+              setView("attest");
+              closeDetail();
+              void loadAttest();
+            }}
+          >
+            <ClipboardCheck size={17} />
+            <span className="nav-label">Attestering</span>
+            {!!attest?.length && <span className="nav-count alert">{attest.length}</span>}
           </button>
         </nav>
       </aside>
@@ -602,8 +672,8 @@ export function Portal({
                   className={!detail ? "active" : ""}
                   onClick={closeDetail}
                 >
-                  <Users size={15} />
-                  Mina patienter
+                  {view === "attest" ? <ClipboardCheck size={15} /> : <Users size={15} />}
+                  {view === "attest" ? "Attestering" : "Mina patienter"}
                 </button>
                 {detail && (
                   <span role="tab" aria-selected className="active wb-patient-tab">
@@ -615,7 +685,25 @@ export function Portal({
                   </span>
                 )}
               </div>
-          {!detail ? (
+          {!detail && view === "attest" ? (
+            <AttestationGrid
+              items={attest}
+              loading={attestLoading}
+              error={attestError}
+              isDoctor={session.role === "doctor"}
+              onRefresh={() => void loadAttest()}
+              onReview={(item) => {
+                setReview({ patientId: item.patient_id, recordId: item.id, kind: item.kind });
+                void open({
+                  id: item.patient_id,
+                  display_name: item.display_name,
+                  identity_label: item.identity_label,
+                  identity_verified: item.identity_verified,
+                  last_sync_at: null,
+                });
+              }}
+            />
+          ) : !detail ? (
             <div className="grid-view">
               <div className="grid-toolbar">
                 <form className="grid-filter" onSubmit={search}>
