@@ -16,6 +16,7 @@ import {
   Heart,
   History,
   LockKeyhole,
+  Network,
   LogOut,
   Plus,
   Search,
@@ -36,6 +37,7 @@ import {
   type StaffRole,
 } from "@/lib/administration";
 import { normalizeSearch } from "@/lib/model";
+import { SystemOverview } from "@/components/overview/system-overview";
 const demoUser = "10000000-0000-4000-8000-000000000010";
 function demoData(): AdministrationData {
   return {
@@ -141,7 +143,7 @@ export function AdministrationWorkspace({
 }) {
   const organizations = session.organizations ?? [],
     [organizationId, setOrganizationId] = useState(organizations[0]?.id ?? ""),
-    [tab, setTab] = useState<"staff" | "patients" | "history">("staff"),
+    [tab, setTab] = useState<"overview" | "staff" | "patients" | "history">("overview"),
     [data, setData] = useState<AdministrationData | null>(null),
     [query, setQuery] = useState(""),
     [busy, setBusy] = useState(false),
@@ -329,6 +331,7 @@ export function AdministrationWorkspace({
         <nav>
           {(
             [
+              ["overview", "Översikt", Network],
               ["staff", "Personal", Users],
               ["patients", "Patienttilldelning", ClipboardList],
               ["history", "Historik", History],
@@ -436,6 +439,13 @@ export function AdministrationWorkspace({
               {notice}
             </div>
           )}
+          {tab === "overview" ? <SystemOverview
+            key={organizationId}
+            organizationId={organizationId}
+            demo={demo}
+            administration={data}
+            onStaff={() => setTab("staff")}
+          /> : <>
           <div className="page-heading">
             <div>
               <p className="eyebrow">RÄTT PERSON. RÄTT BEHÖRIGHET.</p>
@@ -492,6 +502,7 @@ export function AdministrationWorkspace({
             </section>
           </div>
           {busy && !data && <p role="status">Hämtar administrationen…</p>}
+          </>}
           {data && tab === "staff" && (
             <>
               <section className="panel">
