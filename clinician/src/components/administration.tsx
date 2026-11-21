@@ -147,6 +147,7 @@ export function AdministrationWorkspace({
     [tab, setTab] = useState<"overview" | "staff" | "patients" | "history">("overview"),
     [data, setData] = useState<AdministrationData | null>(null),
     [query, setQuery] = useState(""),
+    [showAll, setShowAll] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -358,6 +359,7 @@ export function AdministrationWorkspace({
               className={"nav-item " + (tab === id ? "selected" : "")}
               onClick={() => {
                 setTab(id);
+                setShowAll(false);
                 setEditor(null);
                 setNotice("");
               }}
@@ -404,7 +406,7 @@ export function AdministrationWorkspace({
           </div>
         )}
         <main className="content">
-          <div className="admin-context">
+          {organizations.length > 1 && <div className="admin-context">
             <label>
               Mottagning
               <select
@@ -425,7 +427,7 @@ export function AdministrationWorkspace({
                 ))}
               </select>
             </label>
-          </div>
+          </div>}
           {error && (
             <div className="alert error" role="alert">
               {error}
@@ -443,30 +445,24 @@ export function AdministrationWorkspace({
             administration={data}
             onStaff={() => setTab("staff")}
           /> : <>
-          <div className="page-heading">
+          {tab !== "patients" && <div className="page-heading">
             <div>
               <h1>
-                {tab === "staff"
-                  ? "Ditt vårdteam"
-                  : tab === "patients"
-                    ? "Patienttilldelning"
-                    : "Administrationshistorik"}
+                {tab === "staff" ? "Ditt vårdteam" : "Administrationshistorik"}
                 <span>.</span>
               </h1>
             </div>
-            {tab !== "history" && (
+            {tab === "staff" && (
               <button
                 className="button primary"
                 disabled={busy || !organizationId}
-                onClick={() =>
-                  setEditor({ kind: tab === "staff" ? "invite" : "patient" })
-                }
+                onClick={() => setEditor({ kind: "invite" })}
               >
                 <Plus size={17} />
-                {tab === "staff" ? "Lägg till personal" : "Koppla patientkonto"}
+                Lägg till personal
               </button>
             )}
-          </div>
+          </div>}
           {tab === "staff" ? <OrganizationChart
             key={organizationId}
             organizationId={organizationId}
@@ -477,7 +473,7 @@ export function AdministrationWorkspace({
             editing={busy}
             onCareTeam={perform}
             onMember={(member) => setEditor({ kind: "member", member })}
-          /> : <div className="stats">
+          /> : tab === "patients" ? null : <div className="stats">
             <section className="stat">
               <Users />
               <div>
@@ -635,96 +631,124 @@ export function AdministrationWorkspace({
             </>
           )}
           {data && tab === "patients" && (
-            <section className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Mottagningens patienter</h2>
+            <section className="patients-page">
+              <div className="patients-toolbar">
+                <form
+                  className="search"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setShowAll(false);
+                    void load();
+                  }}
+                >
+                  <Search size={18} />
+                  <input
+                    aria-label="Sök patient i administrationen"
+                    placeholder="Sök patient på namn eller personnummer"
+                    value={query}
+                    maxLength={120}
+                    autoFocus
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      if (!e.target.value) setShowAll(false);
+                    }}
+                  />
+                  <button className="button primary" disabled={busy}>
+                    Sök
+                  </button>
+                </form>
+                <button
+                  className={"button secondary" + (showAll ? " active" : "")}
+                  disabled={busy}
+                  onClick={() => {
+                    setQuery("");
+                    setShowAll(true);
+                    void load("");
+                  }}
+                >
+                  <Users size={17} />
+                  Alla patienter
+                </button>
+                <button
+                  className="button primary"
+                  disabled={busy || !organizationId}
+                  onClick={() => setEditor({ kind: "patient" })}
+                >
+                  <Plus size={17} />
+                  Koppla patientkonto
+                </button>
+              </div>
+              {!query.trim() && !showAll ? (
+                <div className="empty">
+                  <Search size={28} />
+                  <h3>Sök efter en patient</h3>
                   <p>
-                    Här visas identitet och tilldelning. Kliniska uppgifter
-                    hanteras i vårdportalen.
+                    Ange namn eller personnummer, eller välj Alla patienter.
                   </p>
                 </div>
-              </div>
-              <form
-                className="search"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void load();
-                }}
-              >
-                <Search size={18} />
-                <input
-                  aria-label="Sök patient i administrationen"
-                  placeholder="Sök namn eller exakt personnummer"
-                  value={query}
-                  maxLength={120}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-                <button className="button secondary" disabled={busy}>
-                  Sök
-                </button>
-              </form>
-              {data.patients.length ? (
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Patient</th>
-                        <th>Identitet</th>
-                        <th>Aktiva behandlare</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.patients.map((p) => (
-                        <tr key={p.id}>
-                          <td>
-                            <strong>{p.display_name}</strong>
-                          </td>
-                          <td>
-                            {p.identity_label}
-                            <small className="admin-secondary">
-                              {p.identity_verified
-                                ? "Verifierad kontokoppling"
-                                : "Ej verifierad"}
-                            </small>
-                          </td>
-                          <td>
-                            {data.assignments
-                              .filter((a) => a.patient_id === p.id && a.active)
-                              .map(
-                                (a) =>
-                                  data.members.find(
-                                    (m) =>
-                                      m.user_id === a.clinician_id &&
-                                      m.role !== "admin",
-                                  )?.display_name,
-                              )
-                              .filter(Boolean)
-                              .join(", ") || "Ingen tilldelad"}
-                          </td>
-                          <td>
-                            <button
-                              className="button secondary"
-                              disabled={busy || !p.active}
-                              onClick={() =>
-                                setEditor({ kind: "assignment", patient: p })
-                              }
-                            >
-                              Hantera tilldelning
-                            </button>
-                          </td>
+              ) : data.patients.length ? (
+                <div className="panel">
+                  <div className="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Patient</th>
+                          <th>Identitet</th>
+                          <th>Aktiva behandlare</th>
+                          <th />
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {data.patients.map((p) => (
+                          <tr key={p.id}>
+                            <td>
+                              <strong>{p.display_name}</strong>
+                            </td>
+                            <td>
+                              {p.identity_label}
+                              <small className="admin-secondary">
+                                {p.identity_verified
+                                  ? "Verifierad kontokoppling"
+                                  : "Ej verifierad"}
+                              </small>
+                            </td>
+                            <td>
+                              {data.assignments
+                                .filter(
+                                  (a) => a.patient_id === p.id && a.active,
+                                )
+                                .map(
+                                  (a) =>
+                                    data.members.find(
+                                      (m) =>
+                                        m.user_id === a.clinician_id &&
+                                        m.role !== "admin",
+                                    )?.display_name,
+                                )
+                                .filter(Boolean)
+                                .join(", ") || "Ingen tilldelad"}
+                            </td>
+                            <td>
+                              <button
+                                className="button secondary"
+                                disabled={busy || !p.active}
+                                onClick={() =>
+                                  setEditor({ kind: "assignment", patient: p })
+                                }
+                              >
+                                Hantera tilldelning
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : (
                 <div className="empty">
-                  <h3>Inga patienter i sökresultatet</h3>
-                  <p>
-                    Koppla ett verifierat patientkonto eller ändra sökningen.
-                  </p>
+                  <h3>Inga patienter hittades</h3>
+                  <p>Ändra sökningen eller koppla ett patientkonto.</p>
                 </div>
               )}
             </section>

@@ -6,3 +6,9 @@
 .admin-details > summary { padding: 18px 22px; font-size: 14px; font-weight: 600; color: var(--plum); cursor: pointer; }
 .admin-details > .panel { border: 0; margin: 0; }
 .admin-details[open] > summary { border-bottom: 1px solid var(--line); }
+.patients-page { display: grid; gap: 20px; }
+.patients-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.patients-toolbar .search { flex: 1 1 360px; margin: 0; }
+.patients-toolbar .button.active { background: var(--plum); color: white; }
+.patients-page .empty { background: white; border: 1px dashed var(--line); border-radius: 15px; padding: 48px 24px; text-align: center; color: #6b6577; }
+.patients-page .empty svg { margin: 0 auto 8px; }
