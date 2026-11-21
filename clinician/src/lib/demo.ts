@@ -1,0 +1,117 @@
+import type { ClinicalRecord, Patient, PatientDetail } from "./model";
+export const demoPatients: Patient[] = [
+  {
+    id: "00000000-0000-4000-8000-000000000001",
+    display_name: "Alex Lind",
+    identity_label: "TEST-0001",
+    identity_verified: true,
+    last_sync_at: "2026-11-17T08:20:00Z",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000002",
+    display_name: "Kim Berg",
+    identity_label: "TEST-0002",
+    identity_verified: true,
+    last_sync_at: null,
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000003",
+    display_name: "Robin Holm",
+    identity_label: "TEST-0003",
+    identity_verified: false,
+    last_sync_at: null,
+  },
+];
+export function demoDetail(patient: Patient): PatientDetail {
+  const active = patient.id === demoPatients[0].id;
+  const record: ClinicalRecord = {
+    id: "00000000-0000-4000-8000-000000000101",
+    patient_id: patient.id,
+    kind: "lab",
+    status: "published",
+    version: 1,
+    revision: 1,
+    replaces_id: null,
+    superseded_at: null,
+    published_at: "2026-11-13T10:00:00Z",
+    created_at: "2026-11-13T09:00:00Z",
+    correction_reason: null,
+    payload: {
+      title: "Hälsouppföljning",
+      sampledAt: "2026-11-12T08:00:00Z",
+      source: "Syntetiskt laboratorium",
+      comment: "Exempelsvar för att prova registrering och presentation.",
+      observations: [
+        {
+          code: "tsh",
+          name: "TSH",
+          value: "3.2",
+          comparator: "=",
+          unit: "mIE/L",
+          referenceLow: 0.4,
+          referenceHigh: 4,
+          referenceText: "",
+        },
+        {
+          code: "alt",
+          name: "ALAT",
+          value: "0.45",
+          comparator: "=",
+          unit: "µkat/L",
+          referenceLow: 0.15,
+          referenceHigh: 0.75,
+          referenceText: "",
+        },
+      ],
+    },
+  };
+  return {
+    patient,
+    records: active ? [record] : [],
+    vitals: active
+      ? Array.from({ length: 14 }, (_, i) => ({
+          id: `demo-${i}`,
+          kind: "resting-heart-rate",
+          value: 58 + [3, 0, 2, 1, 4, 2, 0][i % 7],
+          unit: "beats/min",
+          start_at: new Date(Date.UTC(2026, 10, 17 - i, 6)).toISOString(),
+          end_at: new Date(Date.UTC(2026, 10, 17 - i, 6)).toISOString(),
+          source: "Syntetisk klocka",
+          definition: "resting-heart-rate",
+          deleted_at: null,
+        }))
+      : [],
+    audit: [],
+  };
+}
+export function demoPublish(
+  records: ClinicalRecord[],
+  id: string,
+  now: string,
+): ClinicalRecord[] {
+  const selected = records.find((x) => x.id === id);
+  if (!selected || selected.status !== "draft")
+    throw new Error("Utkastet saknas.");
+  if (
+    selected.replaces_id &&
+    !records.some(
+      (x) =>
+        x.id === selected.replaces_id &&
+        x.status === "published" &&
+        !x.superseded_at,
+    )
+  )
+    throw new Error("Originalet har redan rättats.");
+  return records.map((x) =>
+    x.id === id
+      ? {
+          ...x,
+          status: "published",
+          published_at: now,
+          revision: x.revision + 1,
+        }
+      : x.id === selected.replaces_id
+        ? { ...x, superseded_at: now }
+        : x,
+  );
+}

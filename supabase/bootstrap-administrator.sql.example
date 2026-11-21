@@ -1,0 +1,23 @@
+-- BETRODD OPERATÖR, EN GÅNG. Lägg inga verkliga uppgifter i den versionsstyrda filen.
+-- Förbereder endast en e-postbunden behörighet. Användaren verifierar sitt eget konto.
+begin;
+do $$
+declare
+ administrator_email text:='REPLACE_VERIFIED_ADMIN_EMAIL';
+ administrator_name text:='REPLACE_ADMIN_NAME';
+ organization_name text:='REPLACE_ORGANIZATION_NAME';
+ organization_id uuid; invitation_id uuid;
+begin
+ if administrator_email like 'REPLACE_%' or administrator_name like 'REPLACE_%' or organization_name like 'REPLACE_%'
+ or administrator_email !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
+ then raise exception 'Ersätt och verifiera alla platshållare först.';end if;
+ perform pg_advisory_xact_lock(hashtextextended('gohealth:first-administrator',0));
+ if exists(select 1 from clinical_private.administrators) or exists(select 1 from clinical_private.staff_invitations where bootstrap and accepted_at is null and cancelled_at is null)
+ then raise exception 'Första administratören är redan förberedd. Kontrollera befintliga rader först.';end if;
+ insert into clinical_private.organizations(name) values(organization_name) returning id into organization_id;
+ insert into clinical_private.staff_invitations(organization_id,email,display_name,role,bootstrap,identity_attested)
+ values(organization_id,lower(btrim(administrator_email)),administrator_name,'admin',true,true) returning id into invitation_id;
+ insert into clinical_private.administration_audit(organization_id,action,subject_id,details)
+ values(organization_id,'administration.bootstrapPrepared',invitation_id,jsonb_build_object('role','admin'));
+end $$;
+commit;

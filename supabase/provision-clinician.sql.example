@@ -1,0 +1,27 @@
+-- OPERATÖRSMALL. Kör i SQL-editorn efter identitetskontroll, aldrig i klienten.
+-- Ersätt platshållarna i editorn. Lägg inte verkliga personuppgifter i Git.
+begin;
+do $$
+declare
+ clinician_auth_id uuid := '00000000-0000-0000-0000-000000000000';
+ patient_auth_id uuid := '00000000-0000-0000-0000-000000000000';
+ clinician_name text := 'REPLACE_CLINICIAN_NAME';
+ patient_name text := 'REPLACE_PATIENT_NAME';
+ patient_identity text := 'REPLACE_VERIFIED_IDENTITY';
+ organization_name text := 'REPLACE_ORGANIZATION';
+ organization_id uuid;
+ patient_id uuid;
+begin
+ if clinician_auth_id='00000000-0000-0000-0000-000000000000' or patient_auth_id='00000000-0000-0000-0000-000000000000'
+ or clinician_auth_id=patient_auth_id or clinician_name like 'REPLACE_%' or patient_name like 'REPLACE_%'
+ or patient_identity like 'REPLACE_%' or organization_name like 'REPLACE_%' then raise exception 'Ersätt och verifiera alla platshållare först.';end if;
+ if not exists(select 1 from auth.users where id=clinician_auth_id) or not exists(select 1 from auth.users where id=patient_auth_id) then raise exception 'Kontona måste redan finnas i Auth.';end if;
+ -- För en befintlig mottagning: använd dess verifierade UUID i stället för att skapa en ny.
+ insert into clinical_private.organizations(name) values(organization_name) returning id into organization_id;
+ insert into clinical_private.staff(user_id,organization_id,display_name,role) values(clinician_auth_id,organization_id,clinician_name,'doctor');
+ insert into clinical_private.patients(account_id,display_name,identity_label,identity_verified)
+ values(patient_auth_id,patient_name,patient_identity,true) returning id into patient_id;
+ insert into clinical_private.organization_patients(organization_id,patient_id) values(organization_id,patient_id);
+ insert into clinical_private.assignments(patient_id,organization_id,clinician_id) values(patient_id,organization_id,clinician_auth_id);
+end $$;
+commit;
