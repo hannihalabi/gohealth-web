@@ -195,6 +195,51 @@ select pg_temp.ct_assert(not clinical_private.ct_archive_object_access(value->>'
   'an attached archive cannot be removed') from ct_fixture where label = 'initial';
 select pg_temp.ct_denied(format('select public.clinician_ct_archive(''finish'', %L)', jsonb_build_object('id', value->>'id', 'imageCount', 1)),
   '42501', 'cancelled archive cannot be finalized') from ct_fixture where label = 'cancelled';
+-- Image archives work for every modality, and the care team can remove images added by mistake.
+insert into ct_fixture select 'mr', public.clinician_ct_archive('begin', '{"patientId":"94000000-0000-4000-8000-000000000001","size":200}');
+reset role;
+insert into storage.objects(bucket_id,name,version,metadata)
+select 'clinical-ct-archives', value->>'path', 'mr-version', '{"size":200,"mimetype":"application/zip"}' from ct_fixture where label = 'mr';
+set local role authenticated;
+select pg_temp.ct_claims(1);
+select public.clinician_ct_archive('finish', jsonb_build_object('id', value->>'id', 'imageCount', 12)) from ct_fixture where label = 'mr';
+insert into ct_fixture select 'mr_record', public.clinician_save_record('94000000-0000-4000-8000-000000000001', 'imaging',
+  jsonb_set(pg_temp.ct_payload(value->>'id'), '{modality}', '"MR"'), null, 0, null, '') from ct_fixture where label = 'mr';
+select public.clinician_publish_record((value->>'id')::uuid, 1) from ct_fixture where label = 'mr_record';
+select pg_temp.ct_assert((public.clinician_ct_archive('read', jsonb_build_object('recordId', value->>'id'))->>'imageCount')::int = 12,
+  'an MR record can carry an image archive') from ct_fixture where label = 'mr_record';
+select pg_temp.ct_claims(4, 'otp');
+select pg_temp.ct_assert(exists (select 1 from jsonb_array_elements(public.gohealth_patient_data()->'records') r
+  where r->'payload'->>'modality' = 'MR' and r ? 'image_archive'), 'patient sees the published MR images');
+select pg_temp.ct_claims(3);
+select pg_temp.ct_denied(format('select public.clinician_ct_archive(''remove'', %L)', jsonb_build_object('recordId', value->>'id', 'reason', 'Fel patient')),
+  '42501', 'unassigned clinician cannot remove images') from ct_fixture where label = 'mr_record';
+select pg_temp.ct_claims(1);
+select pg_temp.ct_denied(format('select public.clinician_ct_archive(''remove'', %L)', jsonb_build_object('recordId', value->>'id', 'reason', '  ')),
+  '22023', 'a removal reason is required') from ct_fixture where label = 'mr_record';
+select pg_temp.ct_assert(not clinical_private.ct_archive_object_access(value->>'path', 'mr-version', 'delete'),
+  'images stay protected until they are removed') from ct_fixture where label = 'mr';
+select pg_temp.ct_claims(2);
+select pg_temp.ct_assert(public.clinician_ct_archive('remove', jsonb_build_object('recordId', value->>'id', 'reason', 'Fel patient')) ? 'path',
+  'an assigned doctor can remove images') from ct_fixture where label = 'mr_record';
+select public.clinician_ct_archive('remove', jsonb_build_object('recordId', value->>'id', 'reason', 'Fel patient')) from ct_fixture where label = 'mr_record';
+select pg_temp.ct_assert(clinical_private.ct_archive_object_access(value->>'path', 'mr-version', 'delete'),
+  'removed images may be deleted from Storage') from ct_fixture where label = 'mr';
+select pg_temp.ct_assert((public.clinician_ct_archive('read', jsonb_build_object('recordId', value->>'id'))->>'removed')::boolean
+  and public.clinician_ct_archive('read', jsonb_build_object('recordId', value->>'id'))->>'reason' = 'Fel patient',
+  'viewing a removed archive reports it and the reason') from ct_fixture where label = 'mr_record';
+select pg_temp.ct_claims(4, 'otp');
+select set_config('storage.operation', 'storage.object.get_authenticated', true);
+select pg_temp.ct_assert(not exists (select 1 from storage.objects where bucket_id = 'clinical-ct-archives' and name = value->>'path'),
+  'patient can no longer download removed images') from ct_fixture where label = 'mr';
+select set_config('storage.operation', '', true);
+select pg_temp.ct_assert(exists (select 1 from jsonb_array_elements(public.gohealth_patient_data()->'records') r
+  where r->'payload'->>'modality' = 'MR') and not exists (select 1 from jsonb_array_elements(public.gohealth_patient_data()->'records') r
+  where r->'payload'->>'modality' = 'MR' and r ? 'image_archive'), 'the report stays but the patient no longer gets image metadata');
+reset role;
+select pg_temp.ct_assert((select count(*) = 1 from clinical_private.audit where action = 'record.remove_ct_archive'), 'removal is audited once');
+set local role authenticated;
+select pg_temp.ct_claims(1);
 insert into ct_fixture select 'revoked', public.clinician_ct_archive('begin', '{"patientId":"94000000-0000-4000-8000-000000000001","size":100}');
 reset role;
 delete from auth.sessions where id = '92000000-0000-4000-8000-000000000001';

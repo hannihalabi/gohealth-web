@@ -65,9 +65,27 @@ export function demoDetail(patient: Patient): PatientDetail {
       ],
     },
   };
+  const mr: ClinicalRecord = {
+    ...record,
+    id: "00000000-0000-4000-8000-000000000102",
+    kind: "imaging",
+    published_at: "2026-11-14T10:00:00Z",
+    payload: {
+      title: "MR hjärna",
+      sampledAt: "2026-11-14T08:30:00Z",
+      source: "Syntetisk bildtjänst",
+      comment: "",
+      observations: [],
+      modality: "MR",
+      bodyPart: "Hjärna",
+      conclusion: "Syntetiskt exempel. Inga fokala förändringar.",
+      studyId: "",
+      archiveId: "00000000-0000-4000-8000-0000000001a2",
+    },
+  };
   return {
     patient,
-    records: active ? [record] : [],
+    records: active ? [record, mr] : [],
     vitals: active
       ? Array.from({ length: 14 }, (_, i) => ({
           id: `demo-${i}`,

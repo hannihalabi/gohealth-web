@@ -1,0 +1,17 @@
+.iw { display: grid; gap: 14px; }
+.iw-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.iw-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; font: inherit; font-size: 14px; font-weight: 500; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+.iw-tabs button small { padding: 1px 7px; font-size: 11px; border-radius: 99px; background: #f1edf3; color: var(--muted); }
+.iw-tabs button.active { color: var(--plum); font-weight: 700; border-bottom-color: var(--plum); }
+.iw-tabs button.active small { background: #f1e3eb; color: var(--plum); }
+.iw-studies { display: flex; gap: 8px; overflow-x: auto; }
+.iw-studies button { display: grid; text-align: left; gap: 2px; padding: 8px 14px; font: inherit; background: #fff; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; white-space: nowrap; }
+.iw-studies button small { color: var(--muted); }
+.iw-studies button.active { border-color: var(--plum); background: #fbf6f9; }
+.iw-study { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
+.iw-viewer { min-width: 0; }
+.iw-report { min-width: 0; }
+.iw-report .record { margin: 0; }
+.iw-none { display: grid; place-items: center; gap: 6px; padding: 48px 24px; text-align: center; color: var(--muted); background: #f8f6fa; border: 1px dashed var(--line); border-radius: 12px; }
+.iw-none strong { color: var(--ink); }
+@media (max-width: 1000px) { .iw-study { grid-template-columns: minmax(0, 1fr); } }

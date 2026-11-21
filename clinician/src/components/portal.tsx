@@ -45,6 +45,7 @@ import {
 import { demoDetail, demoPatients, demoPublish } from "@/lib/demo";
 import { AdministrationWorkspace } from "@/components/administration";
 import { PresetField } from "@/components/preset-field";
+import { ImagingWorkspace } from "@/components/imaging-workspace";
 import "./shell.css";
 import "./portal-grid.css";
 import {
@@ -893,12 +894,34 @@ export function Portal({
                     <div className="info-note">
                       <ImageIcon size={18} />
                       <p>
-                        Bifoga DT-bilder som en ZIP-fil när du registrerar ett utlåtande.
+                        Bifoga bilder (DICOM, JPEG eller PNG) som en ZIP-fil när du registrerar ett utlåtande.
                         Patienten kan öppna bilderna i GoHealth när du publicerar utlåtandet.
                       </p>
                     </div>
                   )}
-                  {records.filter((x) => x.kind === tab).length ? (
+                  {tab === "imaging" ? (
+                    <ImagingWorkspace
+                      records={records}
+                      demo={demo}
+                      canRemove={(r) => r.status === "draft" || session.role === "doctor"}
+                      onChanged={() => reload(detail.patient.id, requestId.current)}
+                      renderReport={(r) => (
+                        <RecordCard
+                          record={r}
+                          hideArchive
+                          canPublish={session.role === "doctor"}
+                          onEdit={() =>
+                            setEditor({
+                              kind: r.kind,
+                              record: r,
+                              correction: r.status === "published",
+                            })
+                          }
+                          onPublish={() => setPublishing(r)}
+                        />
+                      )}
+                    />
+                  ) : records.filter((x) => x.kind === tab).length ? (
                     records
                       .filter((x) => x.kind === tab)
                       .map((r) => (
@@ -1050,11 +1073,13 @@ function RecordCard({
   onEdit,
   onPublish,
   canPublish,
+  hideArchive,
 }: {
   record: ClinicalRecord;
   onEdit?: () => void;
   onPublish?: () => void;
   canPublish?: boolean;
+  hideArchive?: boolean;
 }) {
   return (
     <article className="record">
@@ -1141,7 +1166,7 @@ function RecordCard({
           {r.payload.studyId && (
             <small>Undersöknings-ID: {r.payload.studyId}</small>
           )}
-          {r.payload.archiveId && <CtArchiveDownload recordId={r.id} />}
+          {r.payload.archiveId && !hideArchive && <CtArchiveDownload recordId={r.id} />}
         </>
       )}
       {r.payload.comment && <p className="comment">{r.payload.comment}</p>}
@@ -1177,7 +1202,7 @@ function CtArchiveDownload({ recordId }: { recordId: string }) {
       const { url } = await ctArchiveRequest<{ url: string }>({ action: "download", recordId });
       const link = document.createElement("a");
       link.href = url;
-      link.download = "DT-bilder.zip";
+      link.download = "bilder.zip";
       link.click();
     } catch (error) {
       setError(error instanceof Error ? error.message : "ZIP-filen kunde inte hämtas.");
@@ -1188,7 +1213,7 @@ function CtArchiveDownload({ recordId }: { recordId: string }) {
   return (
     <div className="ct-archive-download">
       <button type="button" className="button secondary small" onClick={download} disabled={downloading}>
-        <Download size={15} /> {downloading ? "Hämtar…" : "Hämta DT-bilder (ZIP)"}
+        <Download size={15} /> {downloading ? "Hämtar…" : "Hämta bilder (ZIP)"}
       </button>
       {error && <p role="alert" className="alert error">{error}</p>}
     </div>
@@ -1548,9 +1573,9 @@ function Editor({
           ? { ...base, observations: rows }
           : kind === "vaccination"
             ? { ...base, vaccine, dose, batch, location: place }
-            : { ...base, modality, bodyPart, conclusion, studyId, archiveId: modality === "CT" ? archiveId : undefined };
+            : { ...base, modality, bodyPart, conclusion, studyId, archiveId: modality ? archiveId : undefined };
       const validated = validatePayload(kind, payload);
-      if (kind === "imaging" && modality === "CT" && archiveFile) {
+      if (kind === "imaging" && modality && archiveFile) {
         const reservation = archiveUpload.current ?? await ctArchiveRequest<CtArchiveUpload>({
           action: "begin",
           patientId: patient.id,
@@ -1802,7 +1827,6 @@ function Editor({
                 disabled={saving}
                 onChange={(e) => {
                   setModality(e.target.value as typeof modality);
-                  if (e.target.value !== "CT") discardUpload();
                 }}
               >
                 <option value="" disabled>Välj undersökningstyp</option>
@@ -1823,10 +1847,10 @@ function Editor({
                 maxLength={36}
               />
             </label>
-            {canAttachCt && modality === "CT" && (
+            {canAttachCt && modality && (
               <div className="full ct-archive-field">
                 <label>
-                  Bifoga DT-bilder (ZIP)
+                  Bifoga bilder (ZIP)
                   <input
                     ref={archiveInput}
                     type="file"

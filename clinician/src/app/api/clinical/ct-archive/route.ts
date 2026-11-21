@@ -8,7 +8,8 @@ const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("begin"), patientId: z.uuid(), size: z.number().int().min(22).max(CT_ARCHIVE_MAX_BYTES) }),
   z.object({ action: z.literal("finish"), id: z.uuid() }),
   z.object({ action: z.literal("cancel"), id: z.uuid() }),
-  z.object({ action: z.literal("download"), recordId: z.uuid() }),
+  z.object({ action: z.literal("download"), recordId: z.uuid(), inline: z.boolean().optional() }),
+  z.object({ action: z.literal("remove"), recordId: z.uuid(), reason: z.string().trim().min(1).max(500) }),
 ]);
 
 export async function POST(request: Request) {
@@ -61,9 +62,16 @@ export async function POST(request: Request) {
       }
       case "download": {
         const attachment = await archive("read", { recordId: body.recordId });
-        const { data, error } = await bucket.createSignedUrl(attachment.path, 60, { download: "DT-bilder.zip" });
+        if (attachment.removed) return json(attachment);
+        const { data, error } = await bucket.createSignedUrl(attachment.path, 60, body.inline ? undefined : { download: "bilder.zip" });
         if (error) throw new ApiError(502, "Filen kunde inte hämtas. Försök igen.");
         return json({ url: data.signedUrl, imageCount: attachment.imageCount, size: attachment.size });
+      }
+      case "remove": {
+        const removed = await archive("remove", { recordId: body.recordId, reason: body.reason });
+        const { error } = await bucket.remove([removed.path]);
+        if (error) throw new ApiError(502, "Bilderna är markerade som borttagna men filen kunde inte raderas just nu. Försök igen.");
+        return json({ removed: true });
       }
     }
   } catch (error) {
