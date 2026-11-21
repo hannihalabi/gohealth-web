@@ -109,6 +109,16 @@ const auditNames: Record<string, string> = {
   "administration.applicationhandled": "Ansökan hanterad",
   "administration.applicationdismissed": "Ansökan avfärdad",
 };
+function initials(name: string) {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase())
+      .join("") || "A"
+  );
+}
 class AdministrationError extends Error {
   constructor(
     public status: number,
@@ -159,6 +169,29 @@ export function AdministrationWorkspace({
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [editor, setEditor] = useState<Editor | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    const close = (e: Event) => {
+      const menu = document.querySelector<HTMLDetailsElement>(".admin-user");
+      if (menu?.open && (e.type === "keydown" || !menu.contains(e.target as Node)))
+        if (e.type !== "keydown" || (e as KeyboardEvent).key === "Escape") menu.open = false;
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", close);
+    window.addEventListener("click", close);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", close);
+      window.removeEventListener("click", close);
+    };
+  }, []);
   const cache = useRef(demoData()),
     epoch = useRef(0),
     readId = useRef(0);
@@ -334,19 +367,93 @@ export function AdministrationWorkspace({
         </section>
       </main>
     );
+  const adminName =
+    data?.members.find(
+      (m) => m.user_id === session.userId && m.role === "admin",
+    )?.display_name ?? session.name;
   return (
     <div className="workspace administration-workspace">
-      <aside className="sidebar">
-        <a className="brand" href={demo ? "/demo/admin" : links.administration}>
+      <header className="admin-topbar">
+        <a className="admin-brand" href={demo ? "/demo/admin" : links.administration}>
           <span className="brand-mark">
-            <Heart />
+            <Heart size={18} />
           </span>
           <span>
             Go<span>Health</span>
             <i>.</i>
           </span>
         </a>
-        <div className="workspace-label">ADMINISTRATION</div>
+        <span className="admin-crumb-sep">/</span>
+        {organizations.length > 1 ? (
+          <select
+            className="admin-org"
+            aria-label="Mottagning"
+            value={organizationId}
+            disabled={busy}
+            onChange={(e) => {
+              setData(null);
+              setEditor(null);
+              setQuery("");
+              setNotice("");
+              setOrganizationId(e.target.value);
+            }}
+          >
+            {organizations.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="admin-org">
+            {organizations[0]?.name ?? "Mottagning"}
+          </span>
+        )}
+        <span className="admin-pill">Admin</span>
+        <form
+          className="admin-search"
+          role="search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setTab("patients");
+            setShowAll(false);
+            setEditor(null);
+            setNotice("");
+            void load(query);
+          }}
+        >
+          <Search size={16} />
+          <input
+            ref={searchRef}
+            aria-label="Sök patient"
+            placeholder="Sök patient…"
+            maxLength={120}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <kbd>⌘K</kbd>
+        </form>
+        <details className="admin-user">
+          <summary aria-label="Konto">
+            <span className="admin-avatar">{initials(adminName)}</span>
+          </summary>
+          <div className="admin-menu">
+            <strong>{adminName}</strong>
+            <small>Administratör</small>
+            {session.clinical !== false && (
+              <a href={demo ? "/demo" : links.clinical}>
+                <ArrowLeft size={16} />
+                Till vårdportalen
+              </a>
+            )}
+            <button onClick={() => void onLogout()}>
+              <LogOut size={16} />
+              Logga ut
+            </button>
+          </div>
+        </details>
+      </header>
+      <aside className="sidebar admin-rail">
         <nav>
           {(
             [
@@ -372,34 +479,11 @@ export function AdministrationWorkspace({
                 setNotice("");
               }}
             >
-              <Icon size={18} />
+              <Icon size={17} />
               {label}
             </button>
           ))}
-          {session.clinical !== false && (
-            <a className="nav-item" href={demo ? "/demo" : links.clinical}>
-              <ArrowLeft size={18} />
-              Till vårdportalen
-            </a>
-          )}
         </nav>
-        <div className="sidebar-bottom">
-          <div className="staff">
-            <div className="staff-avatar">
-              <ShieldCheck size={20} />
-            </div>
-            <div>
-              <strong>
-                {data?.members.find(
-                  (m) => m.user_id === session.userId && m.role === "admin",
-                )?.display_name ?? session.name}
-              </strong>
-            </div>
-            <button aria-label="Logga ut" onClick={() => void onLogout()}>
-              <LogOut size={17} />
-            </button>
-          </div>
-        </div>
       </aside>
       <div className="main-shell">
         {demo && (
@@ -414,28 +498,6 @@ export function AdministrationWorkspace({
           </div>
         )}
         <main className="content">
-          {organizations.length > 1 && <div className="admin-context">
-            <label>
-              Mottagning
-              <select
-                value={organizationId}
-                disabled={busy}
-                onChange={(e) => {
-                  setData(null);
-                  setEditor(null);
-                  setQuery("");
-                  setNotice("");
-                  setOrganizationId(e.target.value);
-                }}
-              >
-                {organizations.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>}
           {error && (
             <div className="alert error" role="alert">
               {error}

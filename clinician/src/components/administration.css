@@ -68,3 +68,53 @@
 .pt-weeks b { font-size: 12px; }
 .pt-weeks small { color: var(--muted); font-size: 11px; }
 @media (max-width: 700px) { .pt-rows li { flex-direction: column; align-items: flex-start; } }
+
+/* Supabase-inspired shell: top bar, slim rail, dense content. */
+.administration-workspace { --topbar: 56px; --rail: 204px; display: block; }
+.admin-topbar { position: fixed; inset: 0 0 auto 0; height: var(--topbar); z-index: 20; display: flex; align-items: center; gap: 10px; padding: 0 16px; background: #fff; border-bottom: 1px solid var(--line); }
+.admin-brand { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; letter-spacing: -.6px; }
+.admin-brand > span > span { font-weight: 400; }
+.admin-brand i { color: var(--pink); font-style: normal; }
+.admin-brand .brand-mark { width: 30px; height: 30px; border-radius: 9px; }
+.admin-crumb-sep { color: #cfc8d6; font-size: 20px; font-weight: 300; }
+.admin-org { font-size: 14px; font-weight: 600; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: none; }
+select.admin-org { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); }
+.admin-pill { padding: 2px 9px; font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--plum); background: #f8edf3; border: 1px solid #ecd3e2; border-radius: 99px; }
+.admin-search { margin: 0 0 0 auto; display: flex; align-items: center; gap: 8px; width: 280px; padding: 0 10px; height: 34px; background: #faf9fb; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); max-width: none; }
+.admin-search:focus-within { border-color: var(--plum); background: #fff; }
+.admin-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: inherit; font-size: 14px; color: var(--ink); }
+.admin-search kbd { font: inherit; font-size: 11px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.admin-user { position: relative; }
+.admin-user summary { list-style: none; cursor: pointer; display: block; }
+.admin-user summary::-webkit-details-marker { display: none; }
+.admin-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #f1e3eb; color: var(--plum); font-size: 12px; font-weight: 700; }
+.admin-user[open] .admin-avatar { box-shadow: 0 0 0 3px #71375722; }
+.admin-menu { position: absolute; right: 0; top: 44px; min-width: 220px; padding: 12px; display: grid; gap: 2px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px #36233e1f; }
+.admin-menu strong { font-size: 14px; }
+.admin-menu small { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.admin-menu a, .admin-menu button { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 8px; font: inherit; font-size: 14px; text-align: left; cursor: pointer; background: none; border: 0; color: inherit; }
+.admin-menu a:hover, .admin-menu button:hover { background: #f8edf3; }
+.administration-workspace .admin-rail { top: var(--topbar); width: var(--rail); padding: 14px 10px; border-right: 1px solid var(--line); }
+.administration-workspace .admin-rail nav { display: grid; gap: 2px; }
+.administration-workspace .admin-rail .nav-item { padding: 9px 12px; font-size: 14px; font-weight: 500; gap: 10px; color: #4b4556; }
+.administration-workspace .admin-rail .nav-item:hover { background: #f7f4f8; }
+.administration-workspace .admin-rail .nav-item.selected { background: #f8edf3; color: var(--plum); font-weight: 600; }
+.administration-workspace .main-shell { margin-left: var(--rail); width: calc(100% - var(--rail)); padding-top: var(--topbar); }
+.administration-workspace .demo-banner { padding: 8px 28px; }
+.administration-workspace .content { padding: 22px 28px 40px; max-width: 1700px; }
+.administration-workspace .pt, .administration-workspace .dashboard { gap: 14px; }
+.administration-workspace .pt-tiles, .administration-workspace .dashboard-tiles, .administration-workspace .pt-columns, .administration-workspace .dashboard-columns { gap: 14px; }
+.administration-workspace .pt-tile, .administration-workspace .dashboard-tiles button { padding: 16px 18px; }
+.administration-workspace .pt-card, .administration-workspace .dashboard-card { padding: 18px 20px; }
+.administration-workspace .pt-card h2, .administration-workspace .dashboard-card h2 { margin-bottom: 12px; }
+.administration-workspace .panel { border-radius: 14px; }
+@media (max-width: 900px) {
+  .administration-workspace .admin-rail { inset: var(--topbar) 0 auto 0; width: 100%; height: 46px; padding: 6px 10px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .administration-workspace .admin-rail nav { display: flex; }
+  .administration-workspace .admin-rail .nav-item { width: auto; white-space: nowrap; padding: 6px 12px; }
+  .administration-workspace .main-shell { margin-left: 0; width: 100%; padding-top: calc(var(--topbar) + 46px); }
+  .administration-workspace .content { padding: 16px; }
+  .admin-search { width: 150px; }
+  .admin-search kbd, .admin-pill, .admin-crumb-sep { display: none; }
+}
+.administration-workspace .pt > .panel, .administration-workspace .dashboard > .panel { margin-top: 0; }
