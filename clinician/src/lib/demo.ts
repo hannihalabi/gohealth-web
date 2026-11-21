@@ -130,7 +130,21 @@ export function demoDetail(patient: Patient): PatientDetail {
           source: "Syntetiska steg från Apple Hälsa",
           definition: "steps-daily",
           deleted_at: null,
-        })))
+        }))).concat(([
+          ["hrv", "ms", [48, 52, 45, 50, 55, 47, 51], 1],
+          ["weight", "kg", [82.4, 82.1, 82.3, 81.9, 81.8, 82.0, 81.7], 1],
+          ["oxygen", "%", [97, 98, 97, 96, 98, 97, 98], 1],
+        ] as const).flatMap(([kind, unit, base]) => Array.from({ length: 14 }, (_, i) => ({
+          id: `demo-${kind}-${i}`,
+          kind,
+          value: base[(13 - i) % 7] + (13 - i > 7 ? 0 : 0.4),
+          unit,
+          start_at: new Date(Date.UTC(2026, 10, 17 - i, 7)).toISOString(),
+          end_at: new Date(Date.UTC(2026, 10, 17 - i, 7)).toISOString(),
+          source: "Syntetisk klocka",
+          definition: kind,
+          deleted_at: null,
+        }))))
       : [],
     audit: [],
   };
