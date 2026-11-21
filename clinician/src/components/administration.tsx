@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Heart,
   History,
+  LayoutDashboard,
   Network,
   LogOut,
   Plus,
@@ -144,7 +145,7 @@ export function AdministrationWorkspace({
 }) {
   const organizations = session.organizations ?? [],
     [organizationId, setOrganizationId] = useState(organizations[0]?.id ?? ""),
-    [tab, setTab] = useState<"overview" | "staff" | "patients" | "history">("overview"),
+    [tab, setTab] = useState<"overview" | "system" | "staff" | "patients" | "history">("overview"),
     [data, setData] = useState<AdministrationData | null>(null),
     [query, setQuery] = useState(""),
     [showAll, setShowAll] = useState(false),
@@ -327,11 +328,6 @@ export function AdministrationWorkspace({
         </section>
       </main>
     );
-  const active = data?.members.filter((m) => m.active).length ?? 0,
-    waiting =
-      data?.invitations.filter(
-        (i) => invitationState(i) === "Väntar på aktivering",
-      ).length ?? 0;
   return (
     <div className="workspace administration-workspace">
       <aside className="sidebar">
@@ -348,9 +344,10 @@ export function AdministrationWorkspace({
         <nav>
           {(
             [
-              ["overview", "Översikt", Network],
+              ["overview", "Översikt", LayoutDashboard],
+              ["system", "System", Network],
               ["staff", "Personal", Users],
-              ["patients", "Patienttilldelning", ClipboardList],
+              ["patients", "Sök patient", Search],
               ["history", "Historik", History],
             ] as const
           ).map(([id, label, Icon]) => (
@@ -438,30 +435,22 @@ export function AdministrationWorkspace({
               {notice}
             </div>
           )}
-          {tab === "overview" ? <SystemOverview
+          {tab === "overview" ? <Dashboard data={data} busy={busy} onTab={setTab} /> : tab === "system" ? <SystemOverview
             key={organizationId}
             organizationId={organizationId}
             demo={demo}
             administration={data}
             onStaff={() => setTab("staff")}
           /> : <>
-          {tab !== "patients" && <div className="page-heading">
-            <div>
-              <h1>
-                {tab === "staff" ? "Ditt vårdteam" : "Administrationshistorik"}
-                <span>.</span>
-              </h1>
-            </div>
-            {tab === "staff" && (
-              <button
-                className="button primary"
-                disabled={busy || !organizationId}
-                onClick={() => setEditor({ kind: "invite" })}
-              >
-                <Plus size={17} />
-                Lägg till personal
-              </button>
-            )}
+          {tab === "staff" && <div className="page-heading">
+            <button
+              className="button primary"
+              disabled={busy || !organizationId}
+              onClick={() => setEditor({ kind: "invite" })}
+            >
+              <Plus size={17} />
+              Lägg till personal
+            </button>
           </div>}
           {tab === "staff" ? <OrganizationChart
             key={organizationId}
@@ -473,29 +462,7 @@ export function AdministrationWorkspace({
             editing={busy}
             onCareTeam={perform}
             onMember={(member) => setEditor({ kind: "member", member })}
-          /> : tab === "patients" ? null : <div className="stats">
-            <section className="stat">
-              <Users />
-              <div>
-                <span>Aktiva behörigheter</span>
-                <strong>{active}</strong>
-              </div>
-            </section>
-            <section className="stat">
-              <ShieldCheck />
-              <div>
-                <span>Väntar på aktivering</span>
-                <strong>{waiting}</strong>
-              </div>
-            </section>
-            <section className="stat">
-              <ClipboardList />
-              <div>
-                <span>Patienter i sökresultatet</span>
-                <strong>{data?.patients.length ?? 0}</strong>
-              </div>
-            </section>
-          </div>}
+          /> : null}
           {busy && !data && <p role="status">Hämtar administrationen…</p>}
           </>}
           {data && tab === "staff" && (
@@ -503,11 +470,6 @@ export function AdministrationWorkspace({
               <details className="admin-details">
               <summary>Personallista</summary>
               <section className="panel">
-                <div className="panel-heading">
-                  <div>
-                    <h2>Personal och behörigheter</h2>
-                  </div>
-                </div>
                 <div className="table-scroll">
                   <table>
                     <thead>
@@ -558,7 +520,7 @@ export function AdministrationWorkspace({
                 </div>
               </section>
               </details>
-              {waiting > 0 && <section className="panel">
+              {data.invitations.some((i) => invitationState(i) === "Väntar på aktivering") && <section className="panel">
                 <div className="panel-heading">
                   <div>
                     <h2>Väntar på aktivering</h2>
@@ -608,9 +570,6 @@ export function AdministrationWorkspace({
                 ) : (
                   <div className="empty">
                     <h3>Inga väntande aktiveringar</h3>
-                    <p>
-                      Lägg till en person för att förbereda en ny behörighet.
-                    </p>
                   </div>
                 )}
                 <div className="activation-address">
@@ -682,9 +641,6 @@ export function AdministrationWorkspace({
                 <div className="empty">
                   <Search size={28} />
                   <h3>Sök efter en patient</h3>
-                  <p>
-                    Ange namn eller personnummer, eller välj Alla patienter.
-                  </p>
                 </div>
               ) : data.patients.length ? (
                 <div className="panel">
@@ -748,22 +704,12 @@ export function AdministrationWorkspace({
               ) : (
                 <div className="empty">
                   <h3>Inga patienter hittades</h3>
-                  <p>Ändra sökningen eller koppla ett patientkonto.</p>
                 </div>
               )}
             </section>
           )}
           {data && tab === "history" && (
             <section className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Åtkomst och ändringar</h2>
-                  <p>
-                    De senaste 100 administrationshändelserna. Loggen innehåller
-                    inga provsvar.
-                  </p>
-                </div>
-              </div>
               {data.audit.map((a, i) => (
                 <div className="history-row" key={i}>
                   <CheckCircle2 size={17} />
@@ -1151,5 +1097,151 @@ function AdminEditor({
         </div>
       </form>
     </Modal>
+  );
+}
+
+function Dashboard({
+  data,
+  busy,
+  onTab,
+}: {
+  data: AdministrationData | null;
+  busy: boolean;
+  onTab: (tab: "system" | "staff" | "patients" | "history") => void;
+}) {
+  if (!data)
+    return busy ? <p role="status">Hämtar…</p> : null;
+  const staff = data.members.filter((m) => m.active && m.role !== "admin"),
+    admins = data.members.filter((m) => m.active && m.role === "admin").length,
+    waiting = data.invitations.filter(
+      (i) => invitationState(i) === "Väntar på aktivering",
+    ),
+    activePatients = data.patients.filter((p) => p.active),
+    assigned = new Set(
+      data.assignments.filter((a) => a.active).map((a) => a.patient_id),
+    ),
+    unassigned = activePatients.filter((p) => !assigned.has(p.id)),
+    unverified = activePatients.filter((p) => !p.identity_verified),
+    load = staff
+      .map((m) => ({
+        m,
+        n:
+          m.patient_count ??
+          data.assignments.filter((a) => a.active && a.clinician_id === m.user_id)
+            .length,
+      }))
+      .sort((a, b) => b.n - a.n),
+    max = Math.max(1, ...load.map((l) => l.n)),
+    attention = [
+      {
+        n: unassigned.length,
+        label: "Patienter utan behandlare",
+        tab: "patients" as const,
+      },
+      {
+        n: unverified.length,
+        label: "Patienter med overifierad identitet",
+        tab: "patients" as const,
+      },
+      {
+        n: waiting.length,
+        label: "Väntar på aktivering",
+        tab: "staff" as const,
+      },
+      {
+        n: data.members.filter((m) => !m.active).length,
+        label: "Inaktiva konton",
+        tab: "staff" as const,
+      },
+    ].filter((a) => a.n > 0);
+  return (
+    <div className="dashboard">
+      <div className="dashboard-tiles">
+        <button onClick={() => onTab("staff")}>
+          <Users size={20} />
+          <strong>{staff.length}</strong>
+          <span>Behandlare</span>
+        </button>
+        <button onClick={() => onTab("staff")}>
+          <ShieldCheck size={20} />
+          <strong>{admins}</strong>
+          <span>Administratörer</span>
+        </button>
+        <button onClick={() => onTab("patients")}>
+          <ClipboardList size={20} />
+          <strong>{activePatients.length}</strong>
+          <span>Patienter</span>
+        </button>
+        <button onClick={() => onTab("staff")}>
+          <Plus size={20} />
+          <strong>{waiting.length}</strong>
+          <span>Väntar på aktivering</span>
+        </button>
+      </div>
+      <div className="dashboard-columns">
+        <section className="panel dashboard-card">
+          <h2>Kräver åtgärd</h2>
+          {attention.length ? (
+            <ul className="dashboard-list">
+              {attention.map((a) => (
+                <li key={a.label}>
+                  <button onClick={() => onTab(a.tab)}>
+                    <span className="dashboard-count">{a.n}</span>
+                    {a.label}
+                    <ArrowRight size={15} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="dashboard-ok">
+              <CheckCircle2 size={17} />
+              Inget att göra
+            </p>
+          )}
+        </section>
+        <section className="panel dashboard-card">
+          <h2>Patienter per behandlare</h2>
+          {load.length ? (
+            <ul className="dashboard-load">
+              {load.map(({ m, n }) => (
+                <li key={m.user_id}>
+                  <span>
+                    {m.display_name}
+                    <small>{roleNames[m.role]}</small>
+                  </span>
+                  <i style={{ width: (n / max) * 100 + "%" }} />
+                  <b>{n}</b>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="dashboard-ok">Ingen aktiv personal</p>
+          )}
+        </section>
+      </div>
+      <section className="panel dashboard-card">
+        <h2>
+          Senaste händelser
+          <button onClick={() => onTab("history")}>
+            Visa alla <ArrowRight size={14} />
+          </button>
+        </h2>
+        <ul className="dashboard-events">
+          {data.audit.slice(0, 6).map((a, i) => (
+            <li key={i}>
+              <span>{auditNames[a.action] ?? "Administrationsåtgärd"}</span>
+              <time>
+                {new Date(a.created_at).toLocaleString("sv-SE", {
+                  timeZone: "Europe/Stockholm",
+                  dateStyle: "short",
+                  timeStyle: "short",
+                })}
+              </time>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   );
 }

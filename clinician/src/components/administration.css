@@ -12,3 +12,26 @@
 .patients-toolbar .button.active { background: var(--plum); color: white; }
 .patients-page .empty { background: white; border: 1px dashed var(--line); border-radius: 15px; padding: 48px 24px; text-align: center; color: #6b6577; }
 .patients-page .empty svg { margin: 0 auto 8px; }
+.dashboard { display: grid; gap: 20px; }
+.dashboard-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.dashboard-tiles button { display: grid; gap: 2px; text-align: left; padding: 20px; background: white; border: 1px solid var(--line); border-radius: 15px; cursor: pointer; color: inherit; font: inherit; }
+.dashboard-tiles button:hover { border-color: var(--plum); }
+.dashboard-tiles svg { color: var(--plum); margin-bottom: 8px; }
+.dashboard-tiles strong { font-size: 30px; line-height: 1.1; }
+.dashboard-tiles span { color: var(--muted); font-size: 13px; }
+.dashboard-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.dashboard-card { padding: 22px; }
+.dashboard-card h2 { display: flex; justify-content: space-between; align-items: center; margin: 0 0 14px; font-size: 16px; }
+.dashboard-card h2 button { display: inline-flex; gap: 4px; align-items: center; background: none; border: 0; color: var(--plum); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.dashboard-list, .dashboard-load, .dashboard-events { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dashboard-list button { display: flex; gap: 12px; align-items: center; width: 100%; padding: 12px 14px; background: #f7f5f9; border: 0; border-radius: 10px; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.dashboard-list button svg { margin-left: auto; color: var(--plum); }
+.dashboard-count { min-width: 28px; padding: 2px 8px; text-align: center; background: var(--plum); color: white; border-radius: 99px; font-size: 13px; }
+.dashboard-ok { display: flex; gap: 8px; align-items: center; margin: 0; color: #2f7a4f; font-weight: 600; }
+.dashboard-load li { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr auto; gap: 12px; align-items: center; font-size: 14px; font-weight: 600; }
+.dashboard-load small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+.dashboard-load i { display: block; height: 8px; min-width: 4px; border-radius: 4px; background: var(--plum); }
+.dashboard-events li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.dashboard-events li:last-child { border: 0; }
+.dashboard-events time { color: var(--muted); font-size: 13px; white-space: nowrap; }
+@media (max-width: 900px) { .dashboard-tiles { grid-template-columns: 1fr 1fr; } .dashboard-columns { grid-template-columns: 1fr; } }

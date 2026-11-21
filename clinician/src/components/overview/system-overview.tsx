@@ -113,7 +113,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, onSele
   const offset = data?.memberOffset ?? 0;
   return <section className="system-overview" aria-label="Systemöversikt">
     <div className="overview-heading">
-      <div><p className="overview-kicker">GOHEALTH EKOSYSTEM</p><h1>Allt hänger ihop<span>.</span></h1><p>En samlad bild av dina system och människorna bakom.</p></div>
+      <div />
       <button className="button secondary" disabled={busy} onClick={onRefresh}><RefreshCw size={16} className={busy ? "overview-spinning" : ""} />Uppdatera</button>
     </div>
     <div className="overview-metrics">
@@ -124,7 +124,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, onSele
     {error && <div className="alert error" role="alert">{error} {data ? "Bilden visar senast hämtade uppgifter och kan vara inaktuell." : "Ingen aktuell systembild kan visas."}</div>}
     <div className="overview-workbench" aria-busy={busy}>
       <div className={"overview-map " + (error ? "overview-map-stale" : "")}>
-        <div className="overview-map-heading"><span><span className={"overview-signal " + (error || !data ? "is-stale" : "")} />{demo ? "Demonstrationsbild" : "Systemkarta"}</span><span>Klicka på ett system</span></div>
+        <div className="overview-map-heading"><span><span className={"overview-signal " + (error || !data ? "is-stale" : "")} />{demo ? "Demonstrationsbild" : "Systemkarta"}</span></div>
         {!data ? <div className="overview-map-loading" role="status"><Database size={32} /><p>{busy ? "Hämtar systembilden…" : "Systembilden är inte tillgänglig."}</p></div> : <>
           <div className="overview-scene">
             <div className="overview-floor" aria-hidden="true" />
@@ -163,20 +163,18 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, onSele
       <aside className="overview-detail" aria-label="Valt system">
         {selected && data ? <>
           <div className="overview-detail-icon">{(() => { const Icon = icons[selected.kind]; return <Icon size={24} />; })()}</div>
-          <p className="overview-kicker">VALT SYSTEM</p><h2>{selected.name}</h2>
-          <p>{selected.description}</p>
+          <h2>{selected.name}</h2>
           <div className={"overview-connection-state " + (!selected.connected ? "is-satellite" : "")}><span className="overview-signal" />{selected.connected ? "Ansluten till Supabase" : "Fristående satellit"}</div>
           {selected.kind === "admin" || selected.kind === "clinician" ? <>
             <div className="overview-users-heading"><h3>Användare</h3><span>{data.memberTotal}</span></div>
-            <p className="overview-users-caption">Behörigheter i den valda mottagningen. Aktiv betyder att åtkomsten är aktiverad.</p>
             <ul className="overview-users">{data.members.map((member) => <li key={member.user_id + member.role}><span className="overview-user-avatar">{initials(member.display_name)}</span><div><strong>{member.display_name}</strong><span>{roleNames[member.role]} · {member.active ? "Aktiv" : "Inaktiv"}</span><small>{member.email}</small></div></li>)}</ul>
             {!data.members.length && <p className="overview-empty">Inga användare finns på den här sidan.</p>}
             {(data.memberTotal > data.memberLimit || offset > 0) && <div className="overview-pagination"><button disabled={!offset || busy} onClick={() => onPage(Math.max(0, offset - data.memberLimit))}>Föregående</button><span>{offset + 1}–{offset + data.members.length} av {data.memberTotal}</span><button disabled={offset + data.members.length >= data.memberTotal || busy} onClick={() => onPage(offset + data.memberLimit)}>Nästa</button></div>}
             <button className="button secondary overview-manage" onClick={onStaff}><Users size={16} />Hantera personal</button>
-          </> : <div className="overview-detail-note"><Database size={19} /><p>{selected.connected ? "Det här systemet delar GoHealths databas. Användarbehörigheter hanteras i respektive arbetsyta." : "Ingen databasanslutning finns registrerad. När systemet kopplas in uppdateras kartan från anslutningsregistret."}</p></div>}
-        </> : <div className="overview-empty"><Activity size={26}/><p>Välj ett system i kartan för att se mer.</p></div>}
+          </> : <div className="overview-detail-note"><Database size={19} /><p>{selected.connected ? "Delar GoHealths databas." : "Ingen databasanslutning."}</p></div>}
+        </> : <div className="overview-empty"><Activity size={26}/><p>Välj ett system</p></div>}
       </aside>
     </div>
-    <div className="overview-freshness"><span><RefreshCw size={14}/>{data ? `${demo ? "Demodata" : "Hämtat"} ${new Date(data.checkedAt).toLocaleTimeString("sv-SE", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit", second: "2-digit" })} · uppdateras var 30:e sekund` : "Väntar på aktuella uppgifter"}</span><span>Registrerade anslutningar · ingen driftövervakning</span></div>
+    <div className="overview-freshness"><span><RefreshCw size={14}/>{data ? `${demo ? "Demodata" : "Hämtat"} ${new Date(data.checkedAt).toLocaleTimeString("sv-SE", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Väntar på aktuella uppgifter"}</span></div>
   </section>;
 }
