@@ -341,6 +341,24 @@ export function Portal({
     setNotice("Utkastet är sparat. Granska det före publicering.");
     setTab(editor.kind);
   }
+  async function annul(reason: string) {
+    if (!detail || !editor?.record) return;
+    const token = requestId.current;
+    const target = editor.record;
+    if (demo) {
+      storeDemo({
+        ...detail,
+        records: detail.records.filter((x) => x.id !== target.id),
+        audit: [{ action: "Undersökning borttagen", created_at: new Date().toISOString() }, ...detail.audit],
+      });
+    } else {
+      await api("clinical", { action: "annul", recordId: target.id, reason, confirm: "Ta bort" });
+      if (token === requestId.current) void reload(detail.patient.id, token).catch(() => undefined);
+    }
+    if (token !== requestId.current) return;
+    setEditor(null);
+    setNotice("Undersökningen är borttagen.");
+  }
   async function publish() {
     if (!publishing || !detail) return;
     const token = requestId.current;
@@ -978,6 +996,7 @@ export function Portal({
           canAttachCt={!demo}
           onClose={() => setEditor(null)}
           onSave={save}
+          onAnnul={editor.record && (editor.record.status === "draft" || session.role === "doctor") ? annul : undefined}
         />
       )}
       {publishing && detail && (
@@ -1088,7 +1107,9 @@ function RecordCard({
           <span
             className={`pill ${r.status === "draft" ? "draft" : "published"}`}
           >
-            {r.superseded_at
+            {r.annulled_at
+              ? "Borttagen"
+              : r.superseded_at
               ? "Rättad version"
               : r.status === "draft"
                 ? "Utkast"
@@ -1172,6 +1193,9 @@ function RecordCard({
       {r.payload.comment && <p className="comment">{r.payload.comment}</p>}
       {r.correction_reason && (
         <p className="muted">Rättelseorsak: {r.correction_reason}</p>
+      )}
+      {r.annulled_at && (
+        <p className="muted">Orsak till borttagning: {r.annulment_reason}</p>
       )}
       <div className="record-footer">
         <small>
@@ -1494,6 +1518,7 @@ function Editor({
   canAttachCt,
   onClose,
   onSave,
+  onAnnul,
 }: {
   kind: Kind;
   patient: Patient;
@@ -1502,7 +1527,11 @@ function Editor({
   canAttachCt: boolean;
   onClose: () => void;
   onSave: (payload: unknown, reason: string) => Promise<void>;
+  onAnnul?: (reason: string) => Promise<void>;
 }) {
+  const [removing, setRemoving] = useState(false),
+    [removeReason, setRemoveReason] = useState(""),
+    [removeWord, setRemoveWord] = useState("");
   const p = record?.payload;
   const recordedTime = p ? new Date(p.sampledAt) : undefined;
   const recordedLocalTime = recordedTime
@@ -1919,7 +1948,69 @@ function Editor({
             />
           </label>
         )}
+        {removing && record && onAnnul && (
+          <div className="remove-panel" role="alertdialog" aria-label="Bekräfta borttagning">
+            <strong>Ta bort undersökningen</strong>
+            <p>
+              Utlåtandet{record.payload.archiveId ? " och bilderna" : ""} tas bort från journalen och försvinner för patienten.
+              En spärrad kopia med orsaken sparas i loggen. Det går inte att ångra.
+            </p>
+            <label>
+              Orsak
+              <input
+                value={removeReason}
+                maxLength={500}
+                onChange={(e) => setRemoveReason(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+              />
+            </label>
+            <label>
+              <span>Skriv <b>Ta bort</b> för att bekräfta</span>
+              <input
+                value={removeWord}
+                autoComplete="off"
+                onChange={(e) => setRemoveWord(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+              />
+            </label>
+            <div className="remove-actions">
+              <button type="button" className="button secondary" disabled={saving} onClick={() => {
+                setRemoving(false);
+                setRemoveReason("");
+                setRemoveWord("");
+              }}>
+                Avbryt
+              </button>
+              <button
+                type="button"
+                className="button danger-fill"
+                disabled={saving || removeWord !== "Ta bort" || !removeReason.trim()}
+                onClick={async () => {
+                  setSaving(true);
+                  setError("");
+                  try {
+                    discardUpload();
+                    await onAnnul(removeReason.trim());
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Undersökningen kunde inte tas bort.");
+                    setSaving(false);
+                  }
+                }}
+              >
+                Ta bort undersökningen
+              </button>
+            </div>
+          </div>
+        )}
         <div className="dialog-actions">
+          {record && onAnnul && (
+            <button type="button" className="button danger" onClick={() => {
+              setRemoving(true);
+              setTimeout(() => document.querySelector(".remove-panel")?.scrollIntoView({ block: "center", behavior: "smooth" }), 30);
+            }} disabled={saving || removing}>
+              Ta bort
+            </button>
+          )}
           <button type="button" className="button secondary" onClick={close} disabled={saving}>
             Avbryt
           </button>

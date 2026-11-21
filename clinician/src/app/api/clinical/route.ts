@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ApiError, authorized, failure, json, requestBody } from "@/lib/server";
 import { portalSessionReady } from "@/lib/administration";
+import { CT_ARCHIVE_BUCKET } from "@/lib/ct-archive";
 import { ClinicalDateError, normalizeSearch, validatePayload, vitalKinds } from "@/lib/model";
 
 const command = z.discriminatedUnion("action", [
@@ -26,6 +27,14 @@ const command = z.discriminatedUnion("action", [
       expectedRevision: z.number().int().min(0),
       replacesId: z.uuid().nullable(),
       correctionReason: z.string().trim().max(500),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("annul"),
+      recordId: z.uuid(),
+      reason: z.string().trim().min(1).max(500),
+      confirm: z.literal("Ta bort"),
     })
     .strict(),
   z
@@ -78,6 +87,21 @@ export async function POST(request: Request) {
           p_reason: body.correctionReason,
         });
         break;
+      case "annul": {
+        result = await db.rpc("clinician_annul_record", {
+          p_record: body.recordId,
+          p_reason: body.reason,
+          p_confirm: body.confirm,
+        });
+        const path = result.error ? undefined : (result.data as { path?: string } | null)?.path;
+        if (path) {
+          const { error } = await db.storage.from(CT_ARCHIVE_BUCKET).remove([path]);
+          if (error)
+            throw new ApiError(502, "Undersökningen är borttagen men bildfilen kunde inte raderas just nu. Försök ta bort igen.");
+          result = { ...result, data: { ok: true } };
+        }
+        break;
+      }
       case "publish":
         result = await db.rpc("clinician_publish_record", {
           p_id: body.recordId,

@@ -110,6 +110,8 @@ export type ClinicalRecord = {
   published_at: string | null;
   created_at: string;
   correction_reason: string | null;
+  annulled_at?: string | null;
+  annulment_reason?: string | null;
 };
 export type Patient = {
   id: string;
