@@ -1449,3 +1449,11 @@ textarea {
     transition: none !important;
   }
 }
+
+.metric-empty {display:flex;justify-content:space-between;gap:16px;padding:16px 0;border-top:1px solid var(--line);color:var(--muted);}
+.metric-empty strong {font-weight:500;}
+.full-vital {display:block;}
+.full-vital > div {margin-bottom:16px;}
+.full-vital .vital-history {width:100%;}
+.history-date-search {display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin:16px 0;}
+.history-date-search label {display:grid;gap:6px;}

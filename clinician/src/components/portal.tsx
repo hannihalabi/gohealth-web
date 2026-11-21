@@ -1,4 +1,5 @@
 "use client";
+import { VitalsWorkspace } from "@/components/vitals-workspace";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Activity,
@@ -866,7 +867,7 @@ export function Portal({
                   )}
                 </section>
               ) : tab === "vitals" ? (
-                <Vitals key={detail.patient.id} detail={detail} demo={demo}
+                <VitalsWorkspace key={detail.patient.id} key={detail.patient.id} detail={detail} demo={demo}
                   onRefresh={() => reload(detail.patient.id, requestId.current)} />
               ) : (
                 <section className="panel">
@@ -1193,147 +1194,6 @@ function CtArchiveDownload({ recordId }: { recordId: string }) {
       </button>
       {error && <p role="alert" className="alert error">{error}</p>}
     </div>
-  );
-}
-const vitalLabels = {
-  "heart-rate": "Puls",
-  "resting-heart-rate": "Vilopuls",
-  sleep: "Registrerad sömn",
-  steps: "Steg per dag",
-} satisfies Record<(typeof vitalKinds)[number], string>;
-const vitalNumber = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 1 });
-const vitalDay = new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-
-function vitalReading(vital: Vital) {
-  if (vital.value !== null)
-    return { value: vitalNumber.format(vital.value), unit: vital.kind === "steps" ? "steg" : "slag/min" };
-  const minutes = Math.max(0, Math.round((Date.parse(vital.end_at) - Date.parse(vital.start_at)) / 60000));
-  return { value: `${Math.floor(minutes / 60)} tim ${minutes % 60} min`, unit: "" };
-}
-
-function Vitals({ detail, demo, onRefresh }: {
-  detail: PatientDetail;
-  demo: boolean;
-  onRefresh: () => Promise<void>;
-}) {
-  const [refreshing, setRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState("");
-  const [refreshVersion, setRefreshVersion] = useState(0);
-
-  async function refresh() {
-    setRefreshing(true);
-    setRefreshError("");
-    try {
-      await onRefresh();
-      setRefreshVersion((version) => version + 1);
-    } catch {
-      setRefreshError("Mätningarna kunde inte uppdateras. Försök igen.");
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
-  return (
-    <section className="panel">
-      <div className="panel-heading">
-        <div>
-          <h2>Vitalparametrar</h2>
-          <p>Mätningar som patienten har delat från Apple Hälsa.</p>
-        </div>
-        {!demo && <button type="button" className="button secondary" disabled={refreshing} onClick={refresh}>
-          {refreshing ? "Uppdaterar…" : "Uppdatera"}
-        </button>}
-      </div>
-      {refreshError && <p role="alert" className="alert error">{refreshError}</p>}
-      {!detail.vitals.length && (
-        <Empty
-          title="Inga delade mätningar ännu"
-          description="Patienten kan välja vilka mätningar som ska delas med vårdteamet i GoHealth-appen."
-        />
-      )}
-      {vitalKinds.map((kind) => {
-        const values = detail.vitals.filter((v) => v.kind === kind);
-        return values.length > 0 && <VitalCard key={`${kind}-${refreshVersion}`}
-          kind={kind} initial={values} patientId={detail.patient.id} demo={demo} />;
-      })}
-    </section>
-  );
-}
-
-function VitalCard({ kind, initial, patientId, demo }: {
-  kind: (typeof vitalKinds)[number];
-  initial: Vital[];
-  patientId: string;
-  demo: boolean;
-}) {
-  const [older, setOlder] = useState<Vital[]>([]);
-  const [hasEarlier, setHasEarlier] = useState(!demo && initial.length >= vitalPageSize);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const latest = initial[0];
-  const numeric = initial.flatMap((reading) => reading.value === null ? [] : [reading.value]).reverse();
-  const label = vitalLabels[kind];
-  const timeLabel = (reading: Vital) => reading.calendar_day
-    ? vitalDay.format(new Date(reading.calendar_day))
-    : timestamp(reading.end_at);
-  const shown = [...new Map([...initial, ...older].map((reading) => [reading.id, reading])).values()];
-  const reading = vitalReading(latest);
-  const minimum = Math.min(...numeric);
-  const span = Math.max(1, Math.max(...numeric) - minimum);
-  const points = numeric.map((value, i) => `${10 + i * 480 / Math.max(1, numeric.length - 1)},${70 - (value - minimum) * 55 / span}`).join(" ");
-
-  async function loadEarlier() {
-    const last = (older.at(-1) ?? initial.at(-1))!;
-    setLoading(true);
-    setError("");
-    try {
-      const page: Vital[] = await api("clinical", {
-        action: "vital_history", patientId, kind, beforeAt: last.end_at, beforeId: last.id,
-      });
-      setOlder((previous) => [...previous, ...page]);
-      setHasEarlier(page.length === vitalPageSize);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Äldre mätningar kunde inte hämtas.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <article className="vital">
-      <div>
-        <h3>{label}</h3>
-        <strong>{reading.value} <small>{reading.unit}</small></strong>
-        <p>{timeLabel(latest)} · {latest.source}</p>
-      </div>
-      {numeric.length > 1 && (
-        <svg viewBox="0 0 500 90" role="img" aria-label={`Trend för ${label}, ${numeric.length} mätningar`}>
-          <polyline points={points} fill="none" stroke="currentColor" strokeWidth="3" />
-        </svg>
-      )}
-      <details className="vital-history">
-        <summary>Visa mätningar ({shown.length})</summary>
-        <div className="table-scroll">
-          <table>
-            <thead><tr><th>{kind === "steps" ? "Datum" : "Tid"}</th><th>Värde</th><th>Källa</th></tr></thead>
-            <tbody>
-              {shown.map((item) => {
-                const measurement = vitalReading(item);
-                return <tr key={item.id}>
-                  <td>{timeLabel(item)}</td>
-                  <td>{measurement.value} {measurement.unit}</td>
-                  <td>{item.source}</td>
-                </tr>;
-              })}
-            </tbody>
-          </table>
-        </div>
-        {hasEarlier && <button type="button" className="button secondary" disabled={loading} onClick={loadEarlier}>
-          {loading ? "Hämtar…" : "Hämta äldre mätningar"}
-        </button>}
-        {error && <p role="alert" className="alert error">{error}</p>}
-      </details>
-    </article>
   );
 }
 

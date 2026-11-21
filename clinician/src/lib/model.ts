@@ -129,6 +129,7 @@ export type Vital = {
   definition: string;
   deleted_at: string | null;
   calendar_day?: string | null;
+  metadata?: Record<string, unknown>;
 };
 export const vitalKinds = ["heart-rate", "resting-heart-rate", "sleep", "steps"] as const;
 export const vitalPageSize = 100;
