@@ -867,7 +867,7 @@ export function Portal({
                   )}
                 </section>
               ) : tab === "vitals" ? (
-                <VitalsWorkspace key={detail.patient.id} key={detail.patient.id} detail={detail} demo={demo}
+                <VitalsWorkspace key={detail.patient.id} detail={detail} demo={demo}
                   onRefresh={() => reload(detail.patient.id, requestId.current)} />
               ) : (
                 <section className="panel">
