@@ -2,6 +2,7 @@ import { administrationCommand, portalSessionReady } from "@/lib/administration"
 import { normalizeSearch } from "@/lib/model";
 import { overviewRequest } from "@/lib/overview";
 import { pipelineDecision, pipelineRequest } from "@/lib/pipeline";
+import { databaseHealthRequest } from "@/lib/database-health";
 import { authorized, ApiError, failure, json, requestBody } from "@/lib/server";
 export async function POST(request: Request) {
   try {
@@ -13,7 +14,9 @@ export async function POST(request: Request) {
           ? pipelineRequest.parse(input)
           : input?.action === "pipelineDecision"
             ? pipelineDecision.parse(input)
-            : administrationCommand.parse(input);
+            : input?.action === "database"
+              ? databaseHealthRequest.parse(input)
+              : administrationCommand.parse(input);
     const { db, session } = await authorized();
     if (!session.admin || !portalSessionReady(session))
       throw new ApiError(403, "Logga in med ditt administratörskonto för att fortsätta.");
@@ -25,6 +28,15 @@ export async function POST(request: Request) {
       });
       if (result.error) throw result.error;
       return json(result.data);
+    }
+    if (body.action === "database") {
+      const result = await db.rpc("clinician_database_health", { p_organization_id: body.organizationId });
+      if (result.error) throw result.error;
+      const project = /^([a-z0-9]+)\.supabase\.co$/.exec(new URL(process.env.SUPABASE_URL ?? "https://x.invalid").hostname)?.[1];
+      return json({
+        ...(result.data as object),
+        ...(project ? { dashboardUrl: `https://supabase.com/dashboard/project/${project}` } : {}),
+      });
     }
     if (body.action === "pipeline") {
       const result = await db.rpc("clinician_patient_pipeline", {

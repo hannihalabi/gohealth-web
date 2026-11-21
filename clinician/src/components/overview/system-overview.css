@@ -77,3 +77,36 @@
 .overview-map-footer i { width:19px; border-top:2px solid #9c8aa6; }
 .overview-map-footer span:last-child i { border-top:2px dashed #c9bfd0; }
 .overview-map-loading { color:var(--muted); }
+/* Database health panel. */
+.overview-core { pointer-events: auto; cursor: pointer; border-color: var(--line); transition: border-color .15s, box-shadow .15s; font: inherit; color: inherit; }
+.overview-core:hover { border-color: #c9a9bf; }
+.overview-core.is-selected { border-color: var(--plum); box-shadow: 0 0 0 3px #71375720; }
+.dh { display: grid; gap: 14px; }
+.dh-head { display: flex; align-items: center; gap: 14px; }
+.dh-head h2 { margin: 0; }
+.dh-head p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.dh-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; color: #1f7a5a; background: #e6f5ee; }
+.dh-verdict { padding: 12px 14px; border-radius: 12px; border: 1px solid; }
+.dh-verdict strong { display: block; font-size: 15px; }
+.dh-verdict ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+.dh-verdict.dh-ok { color: #1f6a4d; background: #e9f6ef; border-color: #c7e7d6; }
+.dh-verdict.dh-warn { color: #8a5a12; background: #fbf3e0; border-color: #efdcae; }
+.dh-verdict.dh-bad { color: #a33a3a; background: #fbeaea; border-color: #f0c9c9; }
+.dh-meter { display: grid; gap: 6px; }
+.dh-meter > div:first-child { display: flex; justify-content: space-between; font-size: 14px; }
+.dh-meter small { color: var(--muted); font-size: 12px; }
+.dh-bar { height: 8px; background: #f1edf3; border-radius: 4px; overflow: hidden; }
+.dh-bar i { display: block; height: 100%; border-radius: 4px; background: #2fa57a; }
+.dh-bar.dh-warn i { background: #d9a13b; }
+.dh-bar.dh-bad i { background: #c9473f; }
+.dh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dh-grid > div { display: grid; gap: 2px; padding: 10px 12px; background: #faf9fb; border: 1px solid var(--line); border-radius: 10px; }
+.dh-grid svg { color: var(--plum); }
+.dh-grid strong { font-size: 18px; }
+.dh-grid span { color: var(--muted); font-size: 12px; }
+.dh-tables h3 { font-size: 14px; margin: 0 0 6px; }
+.dh-tables ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.dh-tables li { display: flex; justify-content: space-between; gap: 8px; }
+.dh-tables small, .dh-time { color: var(--muted); font-size: 12px; }
+.dh-note { margin: 0; color: var(--muted); font-size: 13px; }
+.dh-link { justify-self: start; }

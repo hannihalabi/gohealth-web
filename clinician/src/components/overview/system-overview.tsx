@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Activity, Check, Database, Globe2, LayoutDashboard, RefreshCw, ShieldCheck, Smartphone, Stethoscope, Users, Zap } from "lucide-react";
 import { invitationState, roleNames, type AdministrationData } from "@/lib/administration";
 import { demoOverview, integrationPositions, type Integration, type OverviewData } from "@/lib/overview";
+import { DatabaseHealthPanel } from "./database-health";
 import "./system-overview.css";
 
 const icons = { admin: LayoutDashboard, clinician: Stethoscope, app: Smartphone, website: Globe2, service: Activity };
@@ -23,6 +24,7 @@ export function SystemOverview({ organizationId, demo, administration, onStaff }
   const [offset, setOffset] = useState(0);
   const [refresh, setRefresh] = useState(0);
   const [busy, setBusy] = useState(true);
+  const [showDatabase, setShowDatabase] = useState(false);
   const [error, setError] = useState("");
   const requestId = useRef(0);
   const demoSource = useRef(administration);
@@ -92,6 +94,7 @@ export function SystemOverview({ organizationId, demo, administration, onStaff }
 
   const selected = data?.integrations.find((i) => i.id === selectedId);
   function select(integration: Integration) {
+    setShowDatabase(false);
     setSelectedId(integration.id);
     if (integration.kind === "admin" || integration.kind === "clinician") {
       setMemberPortal(integration.kind);
@@ -99,12 +102,13 @@ export function SystemOverview({ organizationId, demo, administration, onStaff }
     }
   }
 
-  return <SystemOverviewView data={data} selectedId={selected?.id ?? null} busy={busy} error={error} demo={demo}
-    onSelect={select} onRefresh={() => setRefresh((r) => r + 1)} onPage={setOffset} onStaff={onStaff} />;
+  return <SystemOverviewView data={data} selectedId={showDatabase ? null : selected?.id ?? null} busy={busy} error={error} demo={demo}
+    showDatabase={showDatabase} organizationId={organizationId} onDatabase={() => setShowDatabase(true)} onSelect={select} onRefresh={() => setRefresh((r) => r + 1)} onPage={setOffset} onStaff={onStaff} />;
 }
 
-export function SystemOverviewView({ data, selectedId, busy, error, demo, onSelect, onRefresh, onPage, onStaff }: {
+export function SystemOverviewView({ data, selectedId, busy, error, demo, showDatabase = false, organizationId = "", onDatabase = () => {}, onSelect, onRefresh, onPage, onStaff }: {
   data: OverviewData | null; selectedId: string | null; busy: boolean; error: string; demo: boolean;
+  showDatabase?: boolean; organizationId?: string; onDatabase?: () => void;
   onSelect: (integration: Integration) => void; onRefresh: () => void; onPage: (offset: number) => void; onStaff: () => void;
 }) {
   const selected = data?.integrations.find((i) => i.id === selectedId);
@@ -135,10 +139,10 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, onSele
                 </g>;
               })}
             </svg>
-            <div className="overview-core" aria-label="Supabase, central databas">
+            <button type="button" className={"overview-core" + (showDatabase ? " is-selected" : "")} aria-pressed={showDatabase} aria-label="Supabase, central databas. Visa databasens status" onClick={onDatabase}>
               <div className="overview-core-icon"><Database size={30} /></div>
               <strong>Supabase</strong><span>Central databas</span>
-            </div>
+            </button>
             {data.integrations.map((integration, index) => {
               const Icon = icons[integration.kind];
               return <button key={integration.id} className={"overview-node " + (integration.connected ? "is-connected " : "is-satellite ") + (selectedId === integration.id ? "is-selected" : "")}
@@ -155,7 +159,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, onSele
         </>}
       </div>
       <aside className="overview-detail" aria-label="Valt system">
-        {selected && data ? <>
+        {showDatabase ? <DatabaseHealthPanel organizationId={organizationId} demo={demo} /> : selected && data ? <>
           <div className="overview-detail-icon">{(() => { const Icon = icons[selected.kind]; return <Icon size={24} />; })()}</div>
           <h2>{selected.name}</h2>
           <div className={"overview-connection-state " + (!selected.connected ? "is-satellite" : "")}><span className="overview-signal" />{selected.connected ? "Ansluten till Supabase" : "Fristående satellit"}</div>
