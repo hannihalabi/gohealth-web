@@ -127,22 +127,16 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, onSele
         <div className="overview-map-heading"><span><span className={"overview-signal " + (error || !data ? "is-stale" : "")} />{demo ? "Demonstrationsbild" : "Systemkarta"}</span></div>
         {!data ? <div className="overview-map-loading" role="status"><Database size={32} /><p>{busy ? "Hämtar systembilden…" : "Systembilden är inte tillgänglig."}</p></div> : <>
           <div className="overview-scene">
-            <div className="overview-floor" aria-hidden="true" />
-            <div className="overview-orbit overview-orbit-outer" aria-hidden="true" />
-            <div className="overview-orbit" aria-hidden="true" />
             <svg className="overview-connections" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
-              <defs><linearGradient id="overview-line"><stop stopColor="#54dcb3" stopOpacity=".22"/><stop offset=".5" stopColor="#a5ffe0"/><stop offset="1" stopColor="#c685b7" stopOpacity=".6"/></linearGradient></defs>
               {data.integrations.map((integration, index) => {
                 const p = positions[index];
-                return integration.connected && <g key={integration.id} className={integration.id === selectedId ? "is-selected" : ""}>
-                  <path d={`M 500 300 Q ${p.x * 10} 300 ${p.x * 10} ${p.y * 6}`} />
-                  <circle cx={p.x * 10} cy={p.y * 6} r="5" />
+                return <g key={integration.id} className={(integration.connected ? "" : "is-satellite ") + (integration.id === selectedId ? "is-selected" : "")}>
+                  <path d={`M 500 300 L ${p.x * 10} ${p.y * 6}`} />
                 </g>;
               })}
             </svg>
             <div className="overview-core" aria-label="Supabase, central databas">
-              <div className="overview-core-halo" />
-              <div className="overview-cylinder"><div /><div /><div><Zap size={37} fill="currentColor" strokeWidth={1.5} /></div></div>
+              <div className="overview-core-icon"><Database size={30} /></div>
               <strong>Supabase</strong><span>Central databas</span>
             </div>
             {data.integrations.map((integration, index) => {
@@ -153,7 +147,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, onSele
                 <span className="overview-node-icon"><Icon size={24} /></span>
                 <strong>{integration.name}</strong>
                 <span className="overview-node-status">{integration.connected ? <Check size={12} /> : <span className="overview-satellite-dot" />}{integration.connected ? "Ansluten" : "Ej ansluten"}</span>
-                {(integration.kind === "clinician" || integration.kind === "admin") && <span className="overview-node-users"><Users size={13} />{data.counts[integration.kind]} aktiva behörigheter</span>}
+                {(integration.kind === "clinician" || integration.kind === "admin") && <span className="overview-node-users"><Users size={13} />{data.counts[integration.kind]} {data.counts[integration.kind] === 1 ? "aktiv behörighet" : "aktiva behörigheter"}</span>}
               </button>;
             })}
           </div>
