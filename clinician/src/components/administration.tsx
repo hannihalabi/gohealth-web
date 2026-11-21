@@ -38,6 +38,7 @@ import {
 } from "@/lib/administration";
 import { normalizeSearch } from "@/lib/model";
 import { SystemOverview } from "@/components/overview/system-overview";
+import { OrganizationChart } from "@/components/overview/organization-chart";
 const demoUser = "10000000-0000-4000-8000-000000000010";
 function demoData(): AdministrationData {
   return {
@@ -448,7 +449,7 @@ export function AdministrationWorkspace({
           /> : <>
           <div className="page-heading">
             <div>
-              <p className="eyebrow">RÄTT PERSON. RÄTT BEHÖRIGHET.</p>
+              {tab !== "staff" && <p className="eyebrow">RÄTT PERSON. RÄTT BEHÖRIGHET.</p>}
               <h1>
                 {tab === "staff"
                   ? "Ditt vårdteam"
@@ -459,7 +460,7 @@ export function AdministrationWorkspace({
               </h1>
               <p>
                 {tab === "staff"
-                  ? "Lägg till personal och följ vilka som har aktiverat sin åtkomst."
+                  ? "Se ditt team, roller och aktuella behörigheter i en samlad bild."
                   : tab === "patients"
                     ? "Koppla verifierade patientkonton och tilldela en ansvarig behandlare."
                     : "Följ kontohantering och ändrade tilldelningar inom mottagningen."}
@@ -478,7 +479,16 @@ export function AdministrationWorkspace({
               </button>
             )}
           </div>
-          <div className="stats">
+          {tab === "staff" ? <OrganizationChart
+            key={organizationId}
+            organizationId={organizationId}
+            organizationName={organizations.find((o) => o.id === organizationId)?.name ?? "Mottagningen"}
+            demo={demo}
+            source={data}
+            currentUserId={session.userId}
+            editing={busy}
+            onMember={(member) => setEditor({ kind: "member", member })}
+          /> : <div className="stats">
             <section className="stat">
               <Users />
               <div>
@@ -500,7 +510,7 @@ export function AdministrationWorkspace({
                 <strong>{data?.patients.length ?? 0}</strong>
               </div>
             </section>
-          </div>
+          </div>}
           {busy && !data && <p role="status">Hämtar administrationen…</p>}
           </>}
           {data && tab === "staff" && (
