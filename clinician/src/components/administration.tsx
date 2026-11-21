@@ -11,11 +11,9 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  ChevronRight,
   ClipboardList,
   Heart,
   History,
-  LockKeyhole,
   Network,
   LogOut,
   Plus,
@@ -39,6 +37,7 @@ import {
 import { normalizeSearch } from "@/lib/model";
 import { SystemOverview } from "@/components/overview/system-overview";
 import { OrganizationChart } from "@/components/overview/organization-chart";
+import "./administration.css";
 const demoUser = "10000000-0000-4000-8000-000000000010";
 function demoData(): AdministrationData {
   return {
@@ -100,6 +99,7 @@ const auditNames: Record<string, string> = {
   "administration.member": "Personalbehörighet uppdaterad",
   "administration.patient": "Patientkonto kopplat till mottagningen",
   "administration.assignment": "Patienttilldelning uppdaterad",
+  "administration.careTeam": "Teamkoppling uppdaterad",
   "invitation.accept": "Personalbehörighet aktiverad",
 };
 class AdministrationError extends Error {
@@ -233,12 +233,27 @@ export function AdministrationWorkspace({
             active: parsed.active,
             revision: m.revision + 1,
           });
+          for (const person of value.members) {
+            if (person.doctor_id && ((person.user_id === m.user_id && (!m.active || m.role !== "nurse")) ||
+              (person.doctor_id === m.user_id && (!m.active || m.role !== "doctor")))) {
+              person.doctor_id = null;
+              person.team_revision = (person.team_revision ?? 0) + 1;
+            }
+          }
           if (!m.active)
             value.assignments = value.assignments.map((a) =>
               a.clinician_id === m.user_id
                 ? { ...a, active: false, revision: a.revision + 1 }
                 : a,
             );
+        }
+        if (parsed.action === "careTeam") {
+          const nurse = value.members.find((x) => x.user_id === parsed.nurseId && x.role === "nurse" && x.active);
+          const doctor = value.members.find((x) => x.user_id === parsed.doctorId && x.role === "doctor" && x.active);
+          if (!nurse || (parsed.doctorId && !doctor)) throw new Error("Välj en aktiv läkare och sjuksköterska.");
+          if ((nurse.team_revision ?? 0) !== parsed.revision) throw new Error("Teamet har ändrats. Uppdatera kartan.");
+          nurse.doctor_id = parsed.doctorId;
+          nurse.team_revision = (nurse.team_revision ?? 0) + 1;
         }
         if (parsed.action === "cancelInvitation") {
           const inv = value.invitations.find((x) => x.id === parsed.id);
@@ -359,13 +374,6 @@ export function AdministrationWorkspace({
           )}
         </nav>
         <div className="sidebar-bottom">
-          <div className="shield-note">
-            <ShieldCheck size={19} />
-            <span>
-              Separat administratörsbehörighet
-              <small>Personligt konto · två faktorer</small>
-            </span>
-          </div>
           <div className="staff">
             <div className="staff-avatar">
               <ShieldCheck size={20} />
@@ -376,7 +384,6 @@ export function AdministrationWorkspace({
                   (m) => m.user_id === session.userId && m.role === "admin",
                 )?.display_name ?? session.name}
               </strong>
-              <small>Administratör</small>
             </div>
             <button aria-label="Logga ut" onClick={() => void onLogout()}>
               <LogOut size={17} />
@@ -385,14 +392,6 @@ export function AdministrationWorkspace({
         </div>
       </aside>
       <div className="main-shell">
-        <header className="topbar">
-          <span>
-            GoHealth <ChevronRight size={14} /> Administration
-          </span>
-          <span className="secure">
-            <LockKeyhole size={13} /> Skyddad arbetsyta
-          </span>
-        </header>
         {demo && (
           <div className="demo-banner">
             <span>
@@ -426,9 +425,6 @@ export function AdministrationWorkspace({
                 ))}
               </select>
             </label>
-            <span className="muted">
-              Administration ger inte i sig åtkomst till patienternas hälsodata.
-            </span>
           </div>
           {error && (
             <div className="alert error" role="alert">
@@ -449,7 +445,6 @@ export function AdministrationWorkspace({
           /> : <>
           <div className="page-heading">
             <div>
-              {tab !== "staff" && <p className="eyebrow">RÄTT PERSON. RÄTT BEHÖRIGHET.</p>}
               <h1>
                 {tab === "staff"
                   ? "Ditt vårdteam"
@@ -458,13 +453,6 @@ export function AdministrationWorkspace({
                     : "Administrationshistorik"}
                 <span>.</span>
               </h1>
-              <p>
-                {tab === "staff"
-                  ? "Se ditt team, roller och aktuella behörigheter i en samlad bild."
-                  : tab === "patients"
-                    ? "Koppla verifierade patientkonton och tilldela en ansvarig behandlare."
-                    : "Följ kontohantering och ändrade tilldelningar inom mottagningen."}
-              </p>
             </div>
             {tab !== "history" && (
               <button
@@ -487,6 +475,7 @@ export function AdministrationWorkspace({
             source={data}
             currentUserId={session.userId}
             editing={busy}
+            onCareTeam={perform}
             onMember={(member) => setEditor({ kind: "member", member })}
           /> : <div className="stats">
             <section className="stat">
@@ -515,14 +504,12 @@ export function AdministrationWorkspace({
           </>}
           {data && tab === "staff" && (
             <>
+              <details className="admin-details">
+              <summary>Personallista</summary>
               <section className="panel">
                 <div className="panel-heading">
                   <div>
                     <h2>Personal och behörigheter</h2>
-                    <p>
-                      Varje person använder sitt eget konto. Inaktivering
-                      avslutar personens patienttilldelningar i mottagningen.
-                    </p>
                   </div>
                 </div>
                 <div className="table-scroll">
@@ -574,14 +561,11 @@ export function AdministrationWorkspace({
                   </table>
                 </div>
               </section>
-              <section className="panel">
+              </details>
+              {waiting > 0 && <section className="panel">
                 <div className="panel-heading">
                   <div>
-                    <h2>Aktiveringar</h2>
-                    <p>
-                      En ny behörighet blir aktiv först när personen accepterar
-                      med rätt verifierade e-postadress.
-                    </p>
+                    <h2>Väntar på aktivering</h2>
                   </div>
                 </div>
                 {data.invitations.length ? (
@@ -596,7 +580,7 @@ export function AdministrationWorkspace({
                         </tr>
                       </thead>
                       <tbody>
-                        {data.invitations.map((i) => (
+                        {data.invitations.filter((i) => invitationState(i) === "Väntar på aktivering").map((i) => (
                           <tr key={i.id}>
                             <td>
                               <strong>{i.display_name}</strong>
@@ -646,12 +630,8 @@ export function AdministrationWorkspace({
                       aria-label="Aktiveringsadress"
                     />
                   </label>
-                  <p>
-                    Behörigheten är bunden till den angivna e-postadressen.
-                    Adressen i sig ger ingen åtkomst. Giltighet: 7 dagar.
-                  </p>
                 </div>
-              </section>
+              </section>}
             </>
           )}
           {data && tab === "patients" && (

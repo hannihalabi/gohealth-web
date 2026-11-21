@@ -18,6 +18,16 @@ export async function POST(request: Request) {
       if (result.error) throw result.error;
       return json(result.data);
     }
+    if (body.action === "careTeam") {
+      const result = await db.rpc("clinician_set_care_team", {
+        p_organization_id: body.organizationId,
+        p_nurse_id: body.nurseId,
+        p_doctor_id: body.doctorId,
+        p_revision: body.revision,
+      });
+      if (result.error) throw result.error;
+      return json(result.data);
+    }
     const { action, ...args } = body;
     if ("query" in args) args.query = normalizeSearch(args.query);
     if ("identity" in args) args.identity = normalizeSearch(args.identity);

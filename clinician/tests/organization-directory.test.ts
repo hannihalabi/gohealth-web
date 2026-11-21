@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DirectoryError, readOrganizationDirectory } from "../src/lib/organization-directory";
+import { DirectoryError, groupCareTeams, readOrganizationDirectory } from "../src/lib/organization-directory";
 import type { Member } from "../src/lib/administration";
 
 const organizationId = "30000000-0000-4000-8000-000000000001";
@@ -56,4 +56,26 @@ test("an empty middle page cannot silently omit people or loop", async () => {
     return Response.json(page(memberPortal, memberOffset, [], memberPortal === "admin" ? 0 : 80));
   };
   await assert.rejects(readOrganizationDirectory(organizationId, new AbortController().signal, request), /ändrades under hämtningen/);
+});
+
+test("nurses only appear below their explicitly assigned active doctor", () => {
+  const doctor = member(1);
+  const nurse = { ...member(2, "nurse"), doctor_id: "1", patient_count: 4 };
+  const otherNurse = { ...member(3, "nurse"), doctor_id: null, patient_count: 1 };
+  const groups = groupCareTeams([doctor, nurse, otherNurse]);
+  assert.deepEqual(groups.teams[0].nurses.map((n) => n.user_id), ["2"]);
+  assert.deepEqual(groups.unassigned.map((n) => n.user_id), ["3"]);
+  assert.equal(groups.teams[0].nurses[0].patient_count, 4);
+});
+
+test("unavailable doctors and inactive nurses cannot create a misleading team", () => {
+  const doctor = { ...member(1), active: false };
+  const nurses = [
+    { ...member(2, "nurse"), doctor_id: "1" },
+    { ...member(3, "nurse"), doctor_id: "missing" },
+    { ...member(4, "nurse"), doctor_id: "5", active: false },
+  ];
+  const groups = groupCareTeams([doctor, member(5), ...nurses]);
+  assert.ok(groups.teams.every((team) => team.nurses.length === 0));
+  assert.equal(groups.unassigned.length, 3);
 });
