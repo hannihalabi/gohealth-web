@@ -83,6 +83,21 @@ export function demoDetail(patient: Patient): PatientDetail {
       archiveId: "00000000-0000-4000-8000-0000000001a2",
     },
   };
+  const followUp: ClinicalRecord = {
+    ...record,
+    id: "00000000-0000-4000-8000-000000000104",
+    published_at: "2026-11-16T10:00:00Z",
+    payload: {
+      ...record.payload,
+      title: "Uppföljning sköldkörtel",
+      sampledAt: "2026-11-15T08:00:00Z",
+      observations: [
+        { code: "tsh", name: "TSH", value: "7.1", comparator: "=", unit: "mIE/L", referenceLow: 0.4, referenceHigh: 4, referenceText: "" },
+        { code: "free-t4", name: "Fritt T4", value: "9", comparator: "=", unit: "pmol/L", referenceLow: 12, referenceHigh: 22, referenceText: "" },
+        { code: "ldl", name: "LDL-kolesterol", value: "3.1", comparator: "=", unit: "mmol/L", referenceLow: null, referenceHigh: 3, referenceText: "" },
+      ],
+    },
+  };
   const draft: ClinicalRecord = {
     ...record,
     id: "00000000-0000-4000-8000-000000000103",
@@ -92,7 +107,7 @@ export function demoDetail(patient: Patient): PatientDetail {
   };
   return {
     patient,
-    records: active ? [record, mr, draft] : [],
+    records: active ? [record, followUp, mr, draft] : [],
     vitals: active
       ? Array.from({ length: 14 }, (_, i) => ({
           id: `demo-${i}`,

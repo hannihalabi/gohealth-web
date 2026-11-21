@@ -47,6 +47,7 @@ import { demoDetail, demoPatients, demoPublish } from "@/lib/demo";
 import { AdministrationWorkspace } from "@/components/administration";
 import { PresetField } from "@/components/preset-field";
 import { ImagingWorkspace } from "@/components/imaging-workspace";
+import { LabBody } from "@/components/lab-body";
 import { AttestationGrid, type PendingItem } from "@/components/attestation-grid";
 import "./shell.css";
 import "./portal-grid.css";
@@ -1004,6 +1005,9 @@ export function Portal({
                         Patienten kan öppna bilderna i GoHealth när du publicerar utlåtandet.
                       </p>
                     </div>
+                  )}
+                  {tab === "lab" && (
+                    <LabBody records={detail.records} identity={detail.patient.identity_label} />
                   )}
                   {tab === "imaging" ? (
                     <ImagingWorkspace
