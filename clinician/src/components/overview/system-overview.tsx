@@ -5,6 +5,7 @@ import { Activity, Check, Database, Globe2, LayoutDashboard, RefreshCw, ShieldCh
 import { invitationState, roleNames, type AdministrationData } from "@/lib/administration";
 import { demoOverview, integrationPositions, type Integration, type OverviewData } from "@/lib/overview";
 import { DatabaseHealthPanel } from "./database-health";
+import { AdminSummary } from "./admin-summary";
 import "./system-overview.css";
 
 const icons = { admin: LayoutDashboard, clinician: Stethoscope, app: Smartphone, website: Globe2, service: Activity };
@@ -103,12 +104,12 @@ export function SystemOverview({ organizationId, demo, administration, onStaff }
   }
 
   return <SystemOverviewView data={data} selectedId={showDatabase ? null : selected?.id ?? null} busy={busy} error={error} demo={demo}
-    showDatabase={showDatabase} organizationId={organizationId} onDatabase={() => setShowDatabase(true)} onSelect={select} onRefresh={() => setRefresh((r) => r + 1)} onPage={setOffset} onStaff={onStaff} />;
+    showDatabase={showDatabase} organizationId={organizationId} administration={administration} onDatabase={() => setShowDatabase(true)} onSelect={select} onRefresh={() => setRefresh((r) => r + 1)} onPage={setOffset} onStaff={onStaff} />;
 }
 
-export function SystemOverviewView({ data, selectedId, busy, error, demo, showDatabase = false, organizationId = "", onDatabase = () => {}, onSelect, onRefresh, onPage, onStaff }: {
+export function SystemOverviewView({ data, selectedId, busy, error, demo, showDatabase = false, organizationId = "", administration = null, onDatabase = () => {}, onSelect, onRefresh, onPage, onStaff }: {
   data: OverviewData | null; selectedId: string | null; busy: boolean; error: string; demo: boolean;
-  showDatabase?: boolean; organizationId?: string; onDatabase?: () => void;
+  showDatabase?: boolean; organizationId?: string; administration?: AdministrationData | null; onDatabase?: () => void;
   onSelect: (integration: Integration) => void; onRefresh: () => void; onPage: (offset: number) => void; onStaff: () => void;
 }) {
   const selected = data?.integrations.find((i) => i.id === selectedId);
@@ -163,6 +164,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, showDa
           <div className="overview-detail-icon">{(() => { const Icon = icons[selected.kind]; return <Icon size={24} />; })()}</div>
           <h2>{selected.name}</h2>
           <div className={"overview-connection-state " + (!selected.connected ? "is-satellite" : "")}><span className="overview-signal" />{selected.connected ? "Ansluten till Supabase" : "Fristående satellit"}</div>
+          {selected.kind === "admin" && <AdminSummary organizationId={organizationId} demo={demo} administration={administration} />}
           {selected.kind === "admin" || selected.kind === "clinician" ? <>
             <div className="overview-users-heading"><h3>Användare</h3><span>{data.memberTotal}</span></div>
             <ul className="overview-users">{data.members.map((member) => <li key={member.user_id + member.role}><span className="overview-user-avatar">{initials(member.display_name)}</span><div><strong>{member.display_name}</strong><span>{roleNames[member.role]} · {member.active ? "Aktiv" : "Inaktiv"}</span><small>{member.email}</small></div></li>)}</ul>
