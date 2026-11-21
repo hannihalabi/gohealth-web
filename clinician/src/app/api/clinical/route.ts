@@ -2,10 +2,11 @@ import { z } from "zod";
 import { ApiError, authorized, failure, json, requestBody } from "@/lib/server";
 import { portalSessionReady } from "@/lib/administration";
 import { ClinicalDateError, normalizeSearch, validatePayload, vitalKinds } from "@/lib/model";
-const metricKinds = ["heart-rate","resting-heart-rate","hrv","hrv-rmssd","respiratory-rate","oxygen","vo2-max","weight","temperature","fev1","fvc","pef","steps","step-count","distance","active-energy","flights","sleep","sleep-awake","sleep-in-bed","workout"] as const;
+
 const command = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("app_value_history"), patientId: z.uuid(), kind: z.string().min(1).max(200), cursor: z.object({at:z.iso.datetime({offset:true}),id:z.string().regex(/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i)}).strict().nullable() }).strict(),
   z.object({ action: z.literal("vitals_overview"), patientId: z.uuid() }).strict(),
-  z.object({ action: z.literal("vitals_page"), patientId: z.uuid(), kind: z.enum(metricKinds), cursor: z.object({ at: z.iso.datetime({offset:true}), id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) }).strict().nullable() }).strict(),
+  z.object({ action: z.literal("vitals_page"), patientId: z.uuid(), kind: z.string().min(1).max(200), cursor: z.object({ at: z.iso.datetime({offset:true}), id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) }).strict().nullable() }).strict(),
   z.object({ action: z.literal("list"), query: z.string().max(120) }).strict(),
   z.object({ action: z.literal("patient"), patientId: z.uuid() }).strict(),
   z.object({
@@ -45,7 +46,8 @@ export async function POST(request: Request) {
     switch (body.action) {
       case "vitals_overview":
       case "vitals_page":
-        result = await db.rpc("clinician_vitals_v2", { p_patient: body.patientId, p_kind: body.action === "vitals_page" ? body.kind : null, p_cursor: body.action === "vitals_page" ? body.cursor : null });
+      case "app_value_history":
+        result = await db.rpc("clinician_health_v3", { p_patient: body.patientId, p_kind: body.action === "vitals_overview" ? null : body.kind, p_cursor: body.action === "vitals_overview" ? null : body.cursor, p_mode: body.action === "vitals_overview" ? "overview" : body.action === "vitals_page" ? "raw" : "display" });
         break;
       case "list":
         result = await db.rpc("clinician_list_patients", {
@@ -90,3 +92,4 @@ export async function POST(request: Request) {
     return failure(e);
   }
 }
+

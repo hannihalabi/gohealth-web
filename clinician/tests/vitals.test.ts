@@ -17,3 +17,9 @@ test("catalogue covers raw activity, all app quantities, sleep stages and workou
  for(const kind of ["hrv","hrv-rmssd","respiratory-rate","oxygen","vo2-max","fev1","fvc","pef","step-count","workout","sleep-awake","sleep-in-bed"])
   assert.ok(kinds.includes(kind as typeof kinds[number]));
 });
+
+
+test("future app metric titles and units are rendered without catalogue changes",()=>{
+ const future={...sample,kind:"future.unlisted",value:0,unit:"raw-unit",metadata:{title:"New app metric",display_unit:"new-unit"}};
+ assert.equal(formatVital(future),"0 new-unit");
+});

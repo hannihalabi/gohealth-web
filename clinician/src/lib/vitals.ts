@@ -11,7 +11,12 @@ export const metricCatalog = [
  ["sleep-in-bed","Tid i säng",""],["workout","Träningspass","min"],
 ] as const;
 export type VitalSummary = {kind:string;count:number;first_at:string;last_at:string;latest:Vital};
-export type VitalsOverview = {metrics:VitalSummary[];sleep_night:{day:string;seconds:number}|null};
+export type VitalsOverview = {metrics:VitalSummary[];sleep_night:{day:string;seconds:number}|null; display_values?:AppDisplayValue[]; display_series?:{key:string;title:string;count:number;first_at:string;last_at:string}[]; sync?:{state:string;updated_at:string}|null};
+export type AppDisplayValue = {event_id:string; key:string; display_kind:string; title:string; section:string; value:string; unit:string; source:string; measured_at:string|null; observed_at:string; record_id?:string|null};
+export function metricTitle(metric:VitalSummary) {
+ const label=metric.latest.metadata?.title;
+ return typeof label === "string" && label ? label : metricCatalog.find(([kind])=>kind===metric.kind)?.[1] ?? metric.kind;
+}
 export type HistoryCursor = {at:string;id:string};
 export type VitalsPage = {samples:Vital[];next:HistoryCursor|null};
 export function duration(seconds:number) {
@@ -20,9 +25,11 @@ export function duration(seconds:number) {
 }
 export function formatVital(v:Vital) {
  if(v.value===null) return duration(Math.max(0,(Date.parse(v.end_at)-Date.parse(v.start_at))/1000));
- const unit=metricCatalog.find(([kind])=>kind===v.kind)?.[2]??v.unit;
+ const declaredUnit=v.metadata?.display_unit;
+ const unit=typeof declaredUnit==="string" ? declaredUnit : metricCatalog.find(([kind])=>kind===v.kind)?.[2]??v.unit;
  return (new Intl.NumberFormat("sv-SE",{maximumFractionDigits:2}).format(v.value)+" "+unit).trim();
 }
 export function mergeSamples(old:Vital[],page:Vital[]) {
  return [...new Map([...old,...page].map(v=>[v.id,v])).values()];
 }
+

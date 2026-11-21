@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import type {PatientDetail,Vital} from "@/lib/model";
-import {duration,formatVital,mergeSamples,metricCatalog,type HistoryCursor,type VitalSummary,type VitalsOverview,type VitalsPage} from "@/lib/vitals";
+import {duration,formatVital,mergeSamples,metricCatalog,metricTitle,type AppDisplayValue,type HistoryCursor,type VitalSummary,type VitalsOverview,type VitalsPage} from "@/lib/vitals";
 async function request(body:unknown) {
  const response=await fetch("/api/clinical",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
  const result=await response.json();
@@ -36,11 +36,11 @@ export function VitalsWorkspace({detail,demo,onRefresh}:{detail:PatientDetail;de
   {loading&&<p role="status">Hämtar historiköversikt…</p>}
   {overview&&<>
    <p className="muted">{total.toLocaleString("sv-SE")} delade mätningar{first?" · Historik från "+time(first):""}. Saknade värden betyder att data ännu inte har delats eller inte är tillgängliga.</p>
-   <p className="muted">För hela historiken: aktivera ”Dela alla mätvärden och hela historiken” i den uppdaterade GoHealth-appen. Importen fortsätter när appen är öppen.</p>
-   {metricCatalog.map(([kind,label])=>{
-    const metric=overview.metrics.find(m=>m.kind===kind);
-    return metric?<MetricCard key={detail.patient.id+"-"+kind+"-"+version} patientId={detail.patient.id} metric={metric} label={label} demo={demo} initial={detail.vitals.filter(v=>v.kind===kind)} night={kind==="sleep"?overview.sleep_night:null}/>:<article className="metric-empty" key={kind}><strong>{label}</strong><span>Inga delade mätningar</span></article>;
-   })}
+   {overview.sync && <p role="status" className="muted">{overview.sync.state==="complete"?"Appens senaste synkning är klar":overview.sync.state==="retrying"?"Synkningen är inte klar – appen försöker igen":"Historiken synkroniseras"} · {time(overview.sync.updated_at)}</p>}
+   {!!overview.display_values?.length && <div className="app-values"><h3>Appens värden</h3><p className="muted">Visningsvärden och beräkningar från appen. Avläsningstid är skild från mättid.</p>{overview.display_values.map(value=><AppValueCard key={detail.patient.id+"-"+value.key+"-"+version} value={value} patientId={detail.patient.id} count={overview.display_series?.find(s=>s.key===value.key)?.count??1}/>)}</div>}
+
+   {overview.metrics.map(metric=><MetricCard key={detail.patient.id+"-"+metric.kind+"-"+version} patientId={detail.patient.id} metric={metric} label={metricTitle(metric)} demo={demo} initial={detail.vitals.filter(v=>v.kind===metric.kind)} night={metric.kind==="sleep"?overview.sleep_night:null}/>)}
+
    <p className="muted">Råmätningar bevaras med tid, enhet, källa och definition för kommande analys. Ingen AI-analys eller överföring till en AI-tjänst sker här. Garmin-värden som saknas i Apple Hälsa kräver en separat anslutning.</p>
   </>}
  </section>;
@@ -82,5 +82,28 @@ function MetricCard({patientId,metric,label,demo,initial,night}:{patientId:strin
   {loading&&<p role="status">Hämtar…</p>}
   {((loaded&&next)||(!loaded&&error))&&<button type="button" className="button secondary" disabled={loading} onClick={()=>void load()}>{loaded?"Hämta äldre mätningar":"Försök igen"}</button>}
   {error&&<p className="alert error" role="alert">{error}</p>}
+ </details></article>;
+}
+
+
+function AppValueCard({value,patientId,count}:{value:AppDisplayValue;patientId:string;count:number}) {
+ const [items,setItems]=useState<AppDisplayValue[]>([]);
+ const [cursor,setCursor]=useState<HistoryCursor|null>(null);
+ const [loaded,setLoaded]=useState(false);
+ const [loading,setLoading]=useState(false);
+ const [error,setError]=useState("");
+ async function load(){
+  if(loading)return;setLoading(true);setError("");
+  try{
+   const result:{samples:AppDisplayValue[];next:HistoryCursor|null}=await request({action:"app_value_history",patientId,kind:value.key,cursor:loaded?cursor:null});
+   setItems(old=>[...new Map([...old,...result.samples].map(v=>[v.event_id,v])).values()]);setCursor(result.next);setLoaded(true);
+  }catch(e){setError(e instanceof Error?e.message:"Historiken kunde inte hämtas.");}finally{setLoading(false);}
+ }
+ return <article className="app-value-card"><div><h4>{value.title}</h4><strong>{value.value} <small>{value.unit}</small></strong><p className="muted">{value.section} · Avläst i appen {time(value.observed_at)}</p></div>
+ <details onToggle={e=>{if(e.currentTarget.open&&!loaded&&!loading)void load();}}><summary>Historik ({count})</summary>
+ <div className="table-scroll"><table><thead><tr><th>Mättid / avläsning</th><th>Värde</th><th>Källa</th></tr></thead><tbody>{items.map(item=><tr key={item.event_id}><td>{item.measured_at?time(item.measured_at):"Avläst "+time(item.observed_at)}</td><td>{item.value} {item.unit}</td><td>{item.source}</td></tr>)}</tbody></table></div>
+ {loading&&<p role="status">Hämtar…</p>}
+ {((loaded&&cursor)||(!loaded&&error))&&<button className="button secondary" disabled={loading} onClick={load}>{loaded?"Hämta äldre värden":"Försök igen"}</button>}
+ {error&&<p role="alert">{error}</p>}
  </details></article>;
 }
