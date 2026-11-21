@@ -1,10 +1,17 @@
 import { z } from "zod";
 import { ApiError, authorized, failure, json, requestBody } from "@/lib/server";
 import { portalSessionReady } from "@/lib/administration";
-import { ClinicalDateError, normalizeSearch, validatePayload } from "@/lib/model";
+import { ClinicalDateError, normalizeSearch, validatePayload, vitalKinds } from "@/lib/model";
 const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list"), query: z.string().max(120) }).strict(),
   z.object({ action: z.literal("patient"), patientId: z.uuid() }).strict(),
+  z.object({
+    action: z.literal("vital_history"),
+    patientId: z.uuid(),
+    kind: z.enum(vitalKinds),
+    beforeAt: z.iso.datetime({ offset: true }),
+    beforeId: z.uuid(),
+  }).strict(),
   z
     .object({
       action: z.literal("save"),
@@ -41,6 +48,14 @@ export async function POST(request: Request) {
       case "patient":
         result = await db.rpc("clinician_patient", {
           p_patient: body.patientId,
+        });
+        break;
+      case "vital_history":
+        result = await db.rpc("clinician_vital_history", {
+          p_patient: body.patientId,
+          p_kind: body.kind,
+          p_before_at: body.beforeAt,
+          p_before_id: body.beforeId,
         });
         break;
       case "save":

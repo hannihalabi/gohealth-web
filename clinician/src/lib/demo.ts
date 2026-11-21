@@ -79,7 +79,18 @@ export function demoDetail(patient: Patient): PatientDetail {
           source: "Syntetisk klocka",
           definition: "resting-heart-rate",
           deleted_at: null,
-        }))
+        })).concat(Array.from({ length: 14 }, (_, i) => ({
+          id: `demo-steps-${i}`,
+          kind: "steps",
+          value: 7000 + [1263, 630, -1490, 320, 903, -550, 1400][i % 7],
+          unit: "count",
+          start_at: new Date(Date.UTC(2026, 10, 17 - i)).toISOString(),
+          end_at: new Date(Date.UTC(2026, 10, 18 - i)).toISOString(),
+          calendar_day: new Date(Date.UTC(2026, 10, 17 - i)).toISOString().slice(0, 10),
+          source: "Syntetiska steg från Apple Hälsa",
+          definition: "steps-daily",
+          deleted_at: null,
+        })))
       : [],
     audit: [],
   };

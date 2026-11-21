@@ -58,6 +58,39 @@ select pg_temp.claims(3,'aal1');
 select public.gohealth_ingest_vitals('[]','["50000000-0000-4000-8000-000000000001"]');
 select pg_temp.claims(1);
 select pg_temp.assert_true(jsonb_array_length(public.clinician_patient('40000000-0000-4000-8000-000000000001')->'vitals')=0,'deletion propagated');
+select pg_temp.claims(3,'aal1');
+select public.gohealth_ingest_vitals(jsonb_build_array(jsonb_build_object(
+ 'source_id','50000000-0000-4000-8000-000000000002','kind','steps','value',4210,'unit','count',
+ 'start_at','2026-11-09T23:00:00Z','end_at','2026-11-10T12:00:00Z','calendar_day','2026-11-10',
+ 'source','Apple Hälsa','definition','steps-daily')),'[]');
+select public.gohealth_ingest_vitals(jsonb_build_array(jsonb_build_object(
+ 'source_id','50000000-0000-4000-8000-000000000002','kind','steps','value',6320,'unit','count',
+ 'start_at','2026-11-09T23:00:00Z','end_at','2026-11-10T23:00:00Z','calendar_day','2026-11-10',
+ 'source','Apple Hälsa','definition','steps-daily')),'[]');
+select public.gohealth_ingest_vitals(jsonb_build_array(jsonb_build_object(
+ 'source_id','50000000-0000-4000-8000-000000000002','kind','steps','value',4210,'unit','count',
+ 'start_at','2026-11-09T23:00:00Z','end_at','2026-11-10T12:00:00Z','calendar_day','2026-11-10',
+ 'source','Apple Hälsa','definition','steps-daily')),'[]');
+reset role;
+insert into clinical_private.vitals(patient_id,source_id,kind,value,unit,start_at,end_at,source,definition)
+ select '40000000-0000-4000-8000-000000000001',gen_random_uuid(),'heart-rate',60,'beats/min',
+   '2026-11-20T00:00:00Z'::timestamptz + n * interval '1 second',
+   '2026-11-20T00:00:00Z'::timestamptz + n * interval '1 second','Synthetic','heart-rate'
+ from generate_series(1,505)n;
+select pg_temp.claims(1);
+set local role authenticated;
+with detail as (select public.clinician_patient('40000000-0000-4000-8000-000000000001')->'vitals' as v)
+select pg_temp.assert_true(
+ jsonb_array_length(v)=101
+ and v->100->>'calendar_day'='2026-11-10' and v->100->>'value'='6320',
+ 'per-kind limit preserves older steps and daily totals update without duplicates') from detail;
+with detail as (select public.clinician_patient('40000000-0000-4000-8000-000000000001')->'vitals'->99 as last)
+select pg_temp.assert_true(jsonb_array_length(public.clinician_vital_history(
+ '40000000-0000-4000-8000-000000000001','heart-rate',(last->>'end_at')::timestamptz,(last->>'id')::uuid))=100,
+ 'older vitals are paginated') from detail;
+select pg_temp.must_fail($q$select public.clinician_vital_history(
+ '40000000-0000-4000-8000-000000000002','steps',now(),'50000000-0000-4000-8000-000000000002')$q$,
+ 'vital history requires an active care relation');
 insert into test_state select public.clinician_save_record('40000000-0000-4000-8000-000000000001','lab',data->'payload',null,0,(data->>'id')::uuid,'Corrected source') from test_state limit 1;
 select public.clinician_publish_record((data->>'id')::uuid,1) from test_state where data->>'replaces_id' is not null;
 select pg_temp.claims(3,'aal1');
@@ -69,6 +102,9 @@ update clinical_private.assignments set active=false where clinician_id='1000000
 select pg_temp.claims(1);
 set local role authenticated;
 select pg_temp.must_fail($q$select public.clinician_patient('40000000-0000-4000-8000-000000000001')$q$,'revoked assignment immediate');
+select pg_temp.must_fail($q$select public.clinician_vital_history(
+ '40000000-0000-4000-8000-000000000001','steps',now(),'50000000-0000-4000-8000-000000000002')$q$,
+ 'vital history rejects a revoked assignment');
 reset role;
 delete from auth.sessions where user_id='10000000-0000-4000-8000-000000000001';
 set local role authenticated;

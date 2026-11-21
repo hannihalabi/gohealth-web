@@ -84,6 +84,7 @@ try {
     ),
   );
   await db.exec(await readFile(new URL("../../supabase/migrations/20261121094015_patient_ct_archive_hosted_reads.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../../supabase/migrations/20261121150339_clinician_step_sharing.sql", import.meta.url), "utf8"));
   for (const suite of ["clinician_core.sql", "clinician_administration.sql", "clinician_portal_password_beta.sql", "clinician_ct_archives.sql"]) {
     await db.exec("begin");
     const results = await db.exec(

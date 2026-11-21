@@ -128,7 +128,10 @@ export type Vital = {
   source: string;
   definition: string;
   deleted_at: string | null;
+  calendar_day?: string | null;
 };
+export const vitalKinds = ["heart-rate", "resting-heart-rate", "sleep", "steps"] as const;
+export const vitalPageSize = 100;
 export type PatientDetail = {
   patient: Patient;
   records: ClinicalRecord[];

@@ -950,13 +950,24 @@ tbody tr:last-child td {
   font-size: 12px;
   font-weight: 400;
 }
-.vital p,
-.vital > small {
+.vital p {
   color: var(--muted);
   font-size: 11px;
 }
-.vital > small {
+.vital-history {
   width: 100%;
+}
+.vital-history summary {
+  color: var(--plum);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.vital-history table {
+  margin-top: 12px;
+}
+.vital-history button {
+  margin-top: 12px;
 }
 .vital svg {
   width: 50%;
