@@ -7,8 +7,8 @@ import {
   type AppDisplayValue, type HistoryCursor, type VitalSummary, type VitalsOverview, type VitalsPage,
 } from "@/lib/vitals";
 import {
-  categories, intervalKinds, lastDays, rowsFromVitals, seriesFor, sumKinds, summarize, trendDelta,
-  type DayPoint, type TrendResponse,
+  allBucket, bucketRows, categories, intervalKinds, isoWeek, lastDays, rowsFromVitals, seriesFor, sumKinds, summarize, trendDelta,
+  type Bucket, type DayPoint, type TrendResponse,
 } from "@/lib/vitals-trend";
 import "./vitals-view.css";
 
@@ -85,12 +85,37 @@ function valueText(kind: string, value: number, unit: string) {
   return `${number(value)} ${unit}`.trim();
 }
 
-const ranges = [7, 30, 90] as const;
-type Range = (typeof ranges)[number];
+const ranges = [
+  { value: 7, label: "7 dagar" },
+  { value: 30, label: "30 dagar" },
+  { value: 90, label: "90 dagar" },
+  { value: 365, label: "1 år" },
+  { value: "all", label: "Allt" },
+] as const;
+type Range = (typeof ranges)[number]["value"];
+type LongKey = "year" | "all";
+
+/** What a tile or detail view draws for the chosen period. */
+type Resolved = { points: DayPoint[]; bucket: Bucket; fallback: string | null; pending: boolean; failed: boolean };
+
+function bucketLabel(day: string, bucket: Bucket) {
+  if (bucket === "month") return new Date(day + "T12:00:00Z").toLocaleDateString("sv-SE", { month: "short", year: "numeric", timeZone: "UTC" });
+  if (bucket === "week") {
+    const w = isoWeek(day);
+    return `v. ${w.week} ${w.year}`;
+  }
+  return shortDay(day);
+}
+const bucketWord: Record<Bucket, string> = { day: "dag", week: "vecka", month: "månad" };
+function rangeText(range: Range) {
+  return range === "all" ? "all historik" : range === 365 ? "1 år" : `${range} dagar`;
+}
 
 export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDetail; demo: boolean; onRefresh: () => Promise<void> }) {
   const [overview, setOverview] = useState<VitalsOverview | null>(null);
   const [trend, setTrend] = useState<TrendResponse | null>(null);
+  const [long, setLong] = useState<Record<LongKey, TrendResponse | null>>({ year: null, all: null });
+  const [longError, setLongError] = useState<Record<LongKey, boolean>>({ year: false, all: false });
   const [error, setError] = useState("");
   const [overviewError, setOverviewError] = useState("");
   const [trendError, setTrendError] = useState("");
@@ -114,6 +139,8 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
       setOverview(null);
       setTrend(null);
     }
+    setLong({ year: null, all: null });
+    setLongError({ year: false, all: false });
     const loadOverview = (): Promise<VitalsOverview> => demo
       ? Promise.resolve({
           metrics: metricCatalog.flatMap(([kind]) => {
@@ -141,6 +168,62 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail.patient.id, demo, version, demoVitals]);
+
+  // Long ranges load on their own: the full history in the background (it also backs tiles without recent data),
+  // the past year when that period is chosen. Daily data and the overview are never held up by them.
+  const firstAt = overview?.metrics.map((m) => m.first_at).sort()[0];
+  const wantYear = range === 365;
+  const longToken = useRef("");
+  const inflight = useRef(new Set<LongKey>());
+  useEffect(() => {
+    if (!overview || loading) return;
+    // Results from an earlier patient or refresh are ignored; each period is requested once per refresh.
+    const token = detail.patient.id + ":" + version;
+    if (longToken.current !== token) {
+      longToken.current = token;
+      inflight.current.clear();
+    }
+    const load = (key: LongKey) => {
+      if (long[key] || longError[key] || inflight.current.has(key)) return;
+      inflight.current.add(key);
+      const days = key === "year" ? 365
+        : Math.min(40000, Math.max(1, Math.ceil((Date.now() - Date.parse(firstAt ?? new Date().toISOString())) / 86400000) + 1));
+      const bucket: Bucket = key === "year" ? "week" : allBucket(days);
+      const task: Promise<TrendResponse> = demo
+        ? Promise.resolve({ days, bucket, series: bucketRows(rowsFromVitals(detail.vitals), bucket) })
+        : withRetry(() => request({ action: "vitals_trend", patientId: detail.patient.id, days, bucket }));
+      task
+        .then((t) => { if (longToken.current === token) setLong((l) => ({ ...l, [key]: t })); })
+        .catch(() => { if (longToken.current === token) setLongError((e) => ({ ...e, [key]: true })); })
+        .finally(() => { if (longToken.current === token) inflight.current.delete(key); });
+    };
+    load("all");
+    if (wantYear) load("year");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overview, loading, wantYear, long, longError, version, detail.patient.id]);
+
+  function resolve(kind: string): Resolved {
+    const monthly = seriesFor(long.all?.series ?? [], kind);
+    const allBucketUsed: Bucket = long.all?.bucket ?? "month";
+    let points: DayPoint[];
+    let bucket: Bucket;
+    let pending = false;
+    let failed = false;
+    if (range === "all") {
+      points = monthly; bucket = allBucketUsed; pending = !long.all && !longError.all; failed = longError.all;
+    } else if (range === 365) {
+      points = seriesFor(long.year?.series ?? [], kind); bucket = "week"; pending = !long.year && !longError.year; failed = longError.year;
+    } else {
+      points = lastDays(seriesFor(trend?.series ?? [], kind), range); bucket = "day"; failed = !!trendError && !trend;
+    }
+    // A metric without data in the period still shows its trend from the time it was measured.
+    if (!pending && points.length < 2 && range !== "all" && monthly.length >= 2) {
+      const from = monthly[0].day.slice(0, 4);
+      const to = monthly[monthly.length - 1].day.slice(0, 4);
+      return { points: monthly, bucket: allBucketUsed, fallback: `${from === to ? from : `${from}–${to}`} · per ${bucketWord[allBucketUsed]}`, pending: false, failed: false };
+    }
+    return { points, bucket, fallback: null, pending, failed };
+  }
 
   async function refresh() {
     setLoading(true);
@@ -187,8 +270,8 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
         <div className="vt-tools">
           <div className="vt-range" role="group" aria-label="Period">
             {ranges.map((r) => (
-              <button key={r} className={r === range ? "active" : ""} aria-pressed={r === range} onClick={() => setRange(r)}>
-                {r} dagar
+              <button key={r.value} className={r.value === range ? "active" : ""} aria-pressed={r.value === range} onClick={() => setRange(r.value)}>
+                {r.label}
               </button>
             ))}
           </div>
@@ -212,7 +295,7 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
               <h3>{g.title}</h3>
               <div className="vt-grid">
                 {g.metrics.map((m) => (
-                  <MetricTile key={m.kind} metric={m} points={seriesFor(trend?.series ?? [], m.kind)} range={range} trendFailed={!!trendError && !trend}
+                  <MetricTile key={m.kind} metric={m} view={resolve(m.kind)} daily={seriesFor(trend?.series ?? [], m.kind)}
                     night={m.kind === "sleep" ? overview.sleep_night : null} onOpen={() => setSelected(m.kind)} />
                 ))}
               </div>
@@ -238,7 +321,8 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
           patientId={detail.patient.id}
           metric={selectedMetric}
           all={[...byKind.values()]}
-          points={seriesFor(trend?.series ?? [], selectedMetric.kind)}
+          view={resolve(selectedMetric.kind)}
+          daily={seriesFor(trend?.series ?? [], selectedMetric.kind)}
           range={range}
           demo={demo}
           initial={detail.vitals.filter((v) => v.kind === selectedMetric.kind)}
@@ -254,11 +338,12 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
   );
 }
 
-function Spark({ points, bars, failed }: { points: DayPoint[]; bars: boolean; failed?: boolean }) {
+function Spark({ points, bars, failed, pending, bucket = "day" }: { points: DayPoint[]; bars: boolean; failed?: boolean; pending?: boolean; bucket?: Bucket }) {
+  if (pending) return <div className="vt-spark vt-spark-empty">Hämtar trend…</div>;
   if (failed) return <div className="vt-spark vt-spark-empty">Trenden kunde inte hämtas</div>;
   const w = 200;
   const h = 44;
-  if (points.length < 2) return <div className="vt-spark vt-spark-empty">{points.length ? "En dag med data" : "Ingen trend i perioden"}</div>;
+  if (points.length < 2) return <div className="vt-spark vt-spark-empty">{points.length ? `En ${bucketWord[bucket]} med data` : "Ingen trend i perioden"}</div>;
   const values = points.map((p) => p.value);
   const min = bars ? 0 : Math.min(...values);
   const max = Math.max(...values);
@@ -297,17 +382,17 @@ function Delta({ points }: { points: DayPoint[] }) {
   );
 }
 
-function MetricTile({ metric, points, range, night, onOpen, trendFailed }: { metric: VitalSummary; points: DayPoint[]; range: Range; trendFailed?: boolean; night: VitalsOverview["sleep_night"]; onOpen: () => void }) {
-  const inRange = lastDays(points, range);
+function MetricTile({ metric, view, daily, night, onOpen }: { metric: VitalSummary; view: Resolved; daily: DayPoint[]; night: VitalsOverview["sleep_night"]; onOpen: () => void }) {
   const bars = sumKinds.has(metric.kind);
   return (
-    <button type="button" className="vt-tile" onClick={onOpen} aria-label={`${metricTitle(metric)}, öppna trend`}>
+    <button type="button" className={"vt-tile" + (view.fallback ? " is-history" : "")} onClick={onOpen} aria-label={`${metricTitle(metric)}, öppna trend`}>
       <div className="vt-tile-top">
         <span>{metricTitle(metric)}</span>
-        <Delta points={points} />
+        <Delta points={daily} />
       </div>
       <strong>{night ? duration(night.seconds) : formatVital(metric.latest)}</strong>
-      <Spark points={inRange} bars={bars} failed={trendFailed} />
+      <Spark points={view.points} bars={bars} failed={view.failed} pending={view.pending} bucket={view.bucket} />
+      {view.fallback && <span className="vt-history">Inget i perioden · visar {view.fallback}</span>}
       <small>
         {night ? `Natt till ${night.day}` : ago(metric.latest.end_at)} · {metric.count.toLocaleString("sv-SE")} mätningar
       </small>
@@ -315,7 +400,7 @@ function MetricTile({ metric, points, range, night, onOpen, trendFailed }: { met
   );
 }
 
-function TrendChart({ points, kind, unit }: { points: DayPoint[]; kind: string; unit: string }) {
+function TrendChart({ points, kind, unit, bucket }: { points: DayPoint[]; kind: string; unit: string; bucket: Bucket }) {
   const [hover, setHover] = useState<number | null>(null);
   const w = 900;
   const h = 280;
@@ -371,28 +456,30 @@ function TrendChart({ points, kind, unit }: { points: DayPoint[]; kind: string; 
           </>
         )}
         {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={h - pad.b} stroke="#71375755" strokeDasharray="4 4" />}
-        <text x={pad.l} y={h - 6} fontSize="12" fill="#787180">{shortDay(points[0].day)}</text>
-        <text x={w - pad.r} y={h - 6} textAnchor="end" fontSize="12" fill="#787180">{shortDay(points[points.length - 1].day)}</text>
+        <text x={pad.l} y={h - 6} fontSize="12" fill="#787180">{bucketLabel(points[0].day, bucket)}</text>
+        <text x={w - pad.r} y={h - 6} textAnchor="end" fontSize="12" fill="#787180">{bucketLabel(points[points.length - 1].day, bucket)}</text>
       </svg>
       {active && hover !== null && (
         <div className="vt-tip" style={{ left: `${(x(hover) / w) * 100}%` }}>
-          <b>{shortDay(active.day)}</b>
-          <span>{valueText(kind, active.value, unit)}</span>
+          <b>{bucket === "week" ? `Vecka ${isoWeek(active.day).week}, ${isoWeek(active.day).year}` : bucketLabel(active.day, bucket)}</b>
+          <span>{valueText(kind, active.value, unit)}{bucket !== "day" && bars ? (intervalKinds.has(kind) ? " per natt" : " per dag") : ""}</span>
           {showBand && <small>{number(active.min)}–{number(active.max)} · {active.n} mätningar</small>}
+          {bucket !== "day" && <small>{active.days} {active.days === 1 ? "dag" : "dagar"} med data</small>}
         </div>
       )}
     </div>
   );
 }
 
-function MetricDetail({ patientId, metric, all, points, range, demo, initial, night, onBack, onSelect }: {
-  patientId: string; metric: VitalSummary; all: VitalSummary[]; points: DayPoint[]; range: Range; demo: boolean; initial: Vital[];
+function MetricDetail({ patientId, metric, all, view, daily, range, demo, initial, night, onBack, onSelect }: {
+  patientId: string; metric: VitalSummary; all: VitalSummary[]; view: Resolved; daily: DayPoint[]; range: Range; demo: boolean; initial: Vital[];
   night: VitalsOverview["sleep_night"]; onBack: () => void; onSelect: (kind: string) => void;
 }) {
-  const inRange = lastDays(points, range);
+  const inRange = view.points;
   const stats = summarize(inRange);
   const unit = unitFor(metric.kind, metric.latest.unit);
-  const delta = trendDelta(points);
+  const delta = trendDelta(daily);
+  const ofBucket = view.bucket === "week" ? "veckans" : "månadens";
   const kind = metric.kind;
   const sumLike = sumKinds.has(kind) || intervalKinds.has(kind);
   return (
@@ -410,14 +497,20 @@ function MetricDetail({ patientId, metric, all, points, range, demo, initial, ni
       <h3 className="vt-title">{metricTitle(metric)}</h3>
       <div className="vt-stats">
         <div><span>Senaste</span><strong>{night ? duration(night.seconds) : formatVital(metric.latest)}</strong><small>{ago(metric.latest.end_at)}</small></div>
-        <div><span>{sumLike ? "Snitt per dag" : "Snitt"} · {range} dagar</span><strong>{stats ? valueText(kind, stats.avg, unit) : "—"}</strong><small>{stats ? `${stats.days} dagar med data` : "Ingen data"}</small></div>
+        <div><span>{sumLike ? (intervalKinds.has(kind) ? "Snitt per natt" : "Snitt per dag") : "Snitt"} · {view.fallback ?? rangeText(range)}</span><strong>{stats ? valueText(kind, stats.avg, unit) : "—"}</strong><small>{stats ? `${stats.days} dagar med data` : "Ingen data"}</small></div>
         <div><span>Lägsta</span><strong>{stats ? valueText(kind, stats.min, unit) : "—"}</strong></div>
         <div><span>Högsta</span><strong>{stats ? valueText(kind, stats.max, unit) : "—"}</strong></div>
         <div><span>Förändring</span><strong>{delta?.pct === null || !delta ? "—" : `${delta.pct > 0 ? "+" : ""}${Math.round(delta.pct)} %`}</strong><small>7 dagar mot 7 före</small></div>
       </div>
-      <TrendChart points={inRange} kind={kind} unit={unit} />
+      {view.pending ? <div className="vt-chart vt-chart-empty">Hämtar trend…</div>
+        : view.failed ? <div className="vt-chart vt-chart-empty">Trenden kunde inte hämtas. Försök igen med Uppdatera.</div>
+        : <TrendChart points={inRange} kind={kind} unit={unit} bucket={view.bucket} />}
       <p className="vt-note">
-        {sumLike ? "Varje stapel är ett dygn." : "Linjen visar dygnets medelvärde och det skuggade fältet lägsta till högsta."} Dygn räknas i svensk tid.
+        {view.fallback && `Inga mätningar i vald period, visar hela historiken per ${bucketWord[view.bucket]}. `}
+        {view.bucket === "day"
+          ? (sumLike ? "Varje stapel är ett dygn." : "Linjen visar dygnets medelvärde och det skuggade fältet lägsta till högsta.")
+          : (sumLike ? `Varje stapel är ${ofBucket} snitt per ${intervalKinds.has(kind) ? "natt" : "dygn"}.` : `Linjen visar ${ofBucket} medelvärde och det skuggade fältet lägsta till högsta.`)}
+        {" "}Dygn räknas i svensk tid.
       </p>
       <RawHistory key={kind} patientId={patientId} metric={metric} demo={demo} initial={initial} />
     </div>

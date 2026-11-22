@@ -8,9 +8,13 @@ export type TrendRow = {
   max: number | null;
   sum: number | null;
   n: number | null;
+  /** Days with data in the bucket (1 for daily rows). */
+  days?: number | null;
 };
-export type TrendResponse = { days: number; series: TrendRow[] };
-export type DayPoint = { day: string; value: number; min: number; max: number; n: number };
+/** Server grouping. Week and month rows carry the sample-weighted mean (avg) and the mean daily total (sum). */
+export type Bucket = "day" | "week" | "month";
+export type TrendResponse = { days: number; bucket?: Bucket; series: TrendRow[] };
+export type DayPoint = { day: string; value: number; min: number; max: number; n: number; days: number };
 
 /** Metrics that add up over a day. Everything else is shown as the daily average. */
 export const sumKinds = new Set(["steps", "step-count", "distance", "active-energy", "flights", "workout"]);
@@ -31,7 +35,10 @@ export function seriesFor(rows: TrendRow[], kind: string): DayPoint[] {
     .flatMap((r) => {
       const value = useSum ? r.sum : r.avg;
       if (value === null || !Number.isFinite(value)) return [];
-      return [{ day: r.day, value, min: r.min ?? value, max: r.max ?? value, n: r.n ?? 1 }];
+      // Totals compare with totals: the lowest day is the smallest daily total, not the smallest single sample.
+      const min = useSum ? value : r.min ?? value;
+      const max = useSum ? value : r.max ?? value;
+      return [{ day: r.day, value, min, max, n: r.n ?? 1, days: r.days ?? 1 }];
     })
     .sort((a, b) => a.day.localeCompare(b.day));
 }
@@ -47,13 +54,18 @@ export function lastDays(points: DayPoint[], days: number): DayPoint[] {
 
 const mean = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.length;
 
-/** Average of the newest 7 days compared with the 7 days before. Null when either side has no data. */
-export function trendDelta(points: DayPoint[]): { current: number; previous: number; pct: number | null } | null {
+/**
+ * Average of the newest 7 days compared with the 7 days before.
+ * Null unless the data is recent (newest point within 7 days of today) and each week has at least 3 days,
+ * so a single sparse day cannot produce a misleading percentage.
+ */
+export function trendDelta(points: DayPoint[], now = Date.now()): { current: number; previous: number; pct: number | null } | null {
   if (!points.length) return null;
   const newest = dayNumber(points[points.length - 1].day);
+  if (Math.floor(now / 86400000) - newest > 7) return null;
   const current = points.filter((p) => newest - dayNumber(p.day) < 7).map((p) => p.value);
   const previous = points.filter((p) => newest - dayNumber(p.day) >= 7 && newest - dayNumber(p.day) < 14).map((p) => p.value);
-  if (!current.length || !previous.length) return null;
+  if (current.length < 3 || previous.length < 3) return null;
   const c = mean(current);
   const p = mean(previous);
   return { current: c, previous: p, pct: p === 0 ? null : ((c - p) / Math.abs(p)) * 100 };
@@ -67,7 +79,7 @@ export function summarize(points: DayPoint[]) {
     avg: mean(values),
     min: Math.min(...points.map((p) => p.min)),
     max: Math.max(...points.map((p) => p.max)),
-    days: points.length,
+    days: points.reduce((n, p) => n + p.days, 0),
   };
 }
 
@@ -83,4 +95,49 @@ export function rowsFromVitals(vitals: Vital[]): TrendRow[] {
     const [kind, day] = key.split("|");
     return { kind, day, avg: mean(values), min: Math.min(...values), max: Math.max(...values), sum: values.reduce((s, v) => s + v, 0), n: values.length };
   });
+}
+
+/** First day of the week (Monday) or month that contains `day`. */
+export function bucketStart(day: string, bucket: Bucket): string {
+  if (bucket === "month") return day.slice(0, 8) + "01";
+  if (bucket === "day") return day;
+  const n = dayNumber(day);
+  const weekday = (new Date(n * 86400000).getUTCDay() + 6) % 7;
+  return new Date((n - weekday) * 86400000).toISOString().slice(0, 10);
+}
+
+/** ISO week number and week-year for a date. */
+export function isoWeek(day: string): { week: number; year: number } {
+  const n = dayNumber(day);
+  const thursday = n - ((new Date(n * 86400000).getUTCDay() + 6) % 7) + 3;
+  const year = new Date(thursday * 86400000).getUTCFullYear();
+  return { week: 1 + Math.floor((thursday - dayNumber(`${year}-01-01`)) / 7), year };
+}
+
+/** Groups daily rows into weeks or months with the same rules as the server. Used by the demonstration environment. */
+export function bucketRows(rows: TrendRow[], bucket: Bucket): TrendRow[] {
+  if (bucket === "day") return rows;
+  const groups = new Map<string, TrendRow[]>();
+  for (const r of rows) {
+    const key = `${r.kind}|${r.avg === null ? "i" : "v"}|${bucketStart(r.day, bucket)}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  return [...groups.entries()].map(([key, list]) => {
+    const [kind, type, day] = key.split("|");
+    const totals = list.map((r) => r.sum ?? 0);
+    if (type === "i") return { kind, day, avg: null, min: null, max: null, sum: mean(totals), n: null, days: list.length };
+    const n = list.reduce((s, r) => s + (r.n ?? 1), 0);
+    return {
+      kind, day, n, days: list.length,
+      avg: totals.reduce((s, v) => s + v, 0) / n,
+      min: Math.min(...list.map((r) => r.min ?? Infinity)),
+      max: Math.max(...list.map((r) => r.max ?? -Infinity)),
+      sum: mean(totals),
+    };
+  });
+}
+
+/** "Allt" picks a resolution that fits the length of the history. */
+export function allBucket(days: number): Bucket {
+  return days <= 90 ? "day" : days <= 1100 ? "week" : "month";
 }

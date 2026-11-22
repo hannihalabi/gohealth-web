@@ -7,7 +7,7 @@ import { ClinicalDateError, normalizeSearch, validatePayload, vitalKinds } from 
 const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("app_value_history"), patientId: z.uuid(), kind: z.string().min(1).max(200), cursor: z.object({at:z.iso.datetime({offset:true}),id:z.string().regex(/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i)}).strict().nullable() }).strict(),
   z.object({ action: z.literal("vitals_overview"), patientId: z.uuid() }).strict(),
-  z.object({ action: z.literal("vitals_trend"), patientId: z.uuid(), days: z.number().int().min(1).max(366) }).strict(),
+  z.object({ action: z.literal("vitals_trend"), patientId: z.uuid(), days: z.number().int().min(1).max(40000), bucket: z.enum(["day", "week", "month"]).default("day") }).strict(),
   z.object({ action: z.literal("vitals_page"), patientId: z.uuid(), kind: z.string().min(1).max(200), cursor: z.object({ at: z.iso.datetime({offset:true}), id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) }).strict().nullable() }).strict(),
   z.object({ action: z.literal("list"), query: z.string().max(120) }).strict(),
   z.object({ action: z.literal("directory"), query: z.string().max(120) }).strict(),
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         result = await db.rpc("clinician_health_v3", { p_patient: body.patientId, p_kind: body.action === "vitals_overview" ? null : body.kind, p_cursor: body.action === "vitals_overview" ? null : body.cursor, p_mode: body.action === "vitals_overview" ? "overview" : body.action === "vitals_page" ? "raw" : "display" });
         break;
       case "vitals_trend":
-        result = await db.rpc("clinician_health_trend", { p_patient: body.patientId, p_days: body.days });
+        result = await db.rpc("clinician_health_trend", { p_patient: body.patientId, p_days: body.days, p_bucket: body.bucket });
         break;
       case "list":
         result = await db.rpc("clinician_patient_directory", {

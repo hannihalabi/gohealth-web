@@ -48,11 +48,21 @@ select pg_temp.ht_assert((select coalesce(sum((r->>'sum')::float) filter (where 
 select pg_temp.ht_assert(not exists (select 1 from jsonb_array_elements(public.clinician_health_trend('c9000000-0000-4000-8000-000000000001', 1)->'series') r where r->>'kind' = 'sleep'), 'the range limits which days are returned');
 select pg_temp.ht_denied($q$select public.clinician_health_trend('c9000000-0000-4000-8000-000000000001', 0)$q$, '22023', 'invalid range');
 select pg_temp.ht_denied($q$select public.clinician_health_trend('c9000000-0000-4000-8000-000000000001', 1000)$q$, '22023', 'range is bounded');
+-- Week and month buckets: weighted mean, mean daily total and day count, independent of where the weeks fall.
+select pg_temp.ht_assert((select sum((r->>'n')::int) = 3 and sum((r->>'avg')::float * (r->>'n')::int) = 180
+  and sum((r->>'sum')::float * (r->>'days')::int) = 180 and sum((r->>'days')::int) = 2
+  from jsonb_array_elements(public.clinician_health_trend('c9000000-0000-4000-8000-000000000001', 365, 'week')->'series') r
+  where r->>'kind' = 'resting-heart-rate'), 'weekly buckets keep every sample, weighted mean and daily totals');
+select pg_temp.ht_assert((select sum((r->>'sum')::float * (r->>'days')::int) between 7 * 3600 - 1 and 7 * 3600 + 1
+  from jsonb_array_elements(public.clinician_health_trend('c9000000-0000-4000-8000-000000000001', 40000, 'month')->'series') r
+  where r->>'kind' = 'sleep'), 'monthly buckets keep merged sleep per night');
+select pg_temp.ht_denied($q$select public.clinician_health_trend('c9000000-0000-4000-8000-000000000001', 30, 'year')$q$, '22023', 'unknown bucket');
+select pg_temp.ht_denied($q$select public.clinician_health_trend('c9000000-0000-4000-8000-000000000001', 5000, 'week')$q$, '22023', 'weekly range is bounded');
 select pg_temp.ht_claims(2);
 select pg_temp.ht_denied($q$select public.clinician_health_trend('c9000000-0000-4000-8000-000000000001', 30)$q$, '42501', 'unassigned clinician is denied');
 reset role;
 set local role anon;
 select pg_temp.ht_denied($q$select public.clinician_health_trend('c9000000-0000-4000-8000-000000000001', 30)$q$, '42501', 'anonymous callers are denied');
 reset role;
-select pg_temp.ht_assert((select count(*) = 3 from clinical_private.audit where action = 'patient.read_health_trend'), 'every successful read is audited');
-select 'Health trend tests passed: daily aggregates, merged sleep, range bounds, care relation, audit.' as result;
+select pg_temp.ht_assert((select count(*) from clinical_private.audit where action = 'patient.read_health_trend') = 5, 'every successful read is audited');
+select 'Health trend tests passed: daily, weekly and monthly aggregates, merged sleep, range bounds, care relation, audit.' as result;
