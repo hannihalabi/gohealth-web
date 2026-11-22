@@ -98,6 +98,7 @@ try {
   await db.exec(await readFile(new URL("../../supabase/migrations/20261122110000_integration_activity.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../../supabase/migrations/20261121203559_automatic_health_sync.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../../supabase/migrations/20261122120000_health_summary.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../../supabase/migrations/20261122130000_health_read_paths.sql", import.meta.url), "utf8"));
   for (const suite of ["clinician_core.sql","clinician_administration.sql","clinician_portal_password_beta.sql","clinician_ct_archives.sql","administration_overview.sql","health_history.sql","care_teams.sql","patient_pipeline.sql","record_annulment.sql","database_health.sql","health_trend.sql","patient_directory.sql","automatic_health_sync.sql","health_summary.sql"]) {
     await db.exec("begin");
     const results = await db.exec(
