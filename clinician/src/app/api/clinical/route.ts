@@ -10,6 +10,7 @@ const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("vitals_trend"), patientId: z.uuid(), days: z.number().int().min(1).max(366) }).strict(),
   z.object({ action: z.literal("vitals_page"), patientId: z.uuid(), kind: z.string().min(1).max(200), cursor: z.object({ at: z.iso.datetime({offset:true}), id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) }).strict().nullable() }).strict(),
   z.object({ action: z.literal("list"), query: z.string().max(120) }).strict(),
+  z.object({ action: z.literal("directory"), query: z.string().max(120) }).strict(),
   z.object({ action: z.literal("patient"), patientId: z.uuid() }).strict(),
   z.object({ action: z.literal("attestations") }).strict(),
   z.object({
@@ -64,8 +65,15 @@ export async function POST(request: Request) {
         result = await db.rpc("clinician_health_trend", { p_patient: body.patientId, p_days: body.days });
         break;
       case "list":
-        result = await db.rpc("clinician_list_patients", {
+        result = await db.rpc("clinician_patient_directory", {
           p_query: normalizeSearch(body.query),
+          p_scope: "mine",
+        });
+        break;
+      case "directory":
+        result = await db.rpc("clinician_patient_directory", {
+          p_query: normalizeSearch(body.query),
+          p_scope: "all",
         });
         break;
       case "attestations":

@@ -459,7 +459,7 @@ export function AdministrationWorkspace({
           {(
             [
               ["overview", "Översikt", LayoutDashboard],
-              ["newpatients", "Patienter", UserPlus],
+              ["newpatients", "Nya registreringar", UserPlus],
               ["system", "System", Network],
               ["staff", "Personal", Users],
               ["patients", "Sök patient", Search],

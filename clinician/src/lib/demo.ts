@@ -6,6 +6,8 @@ export const demoPatients: Patient[] = [
     identity_label: "TEST-0001",
     identity_verified: true,
     last_sync_at: "2026-11-17T08:20:00Z",
+    doctors: ["Amir · testläkare"],
+    assigned_to_me: true,
   },
   {
     id: "00000000-0000-4000-8000-000000000002",
@@ -13,6 +15,8 @@ export const demoPatients: Patient[] = [
     identity_label: "TEST-0002",
     identity_verified: true,
     last_sync_at: null,
+    doctors: ["Amir · testläkare"],
+    assigned_to_me: true,
   },
   {
     id: "00000000-0000-4000-8000-000000000003",
@@ -20,6 +24,20 @@ export const demoPatients: Patient[] = [
     identity_label: "TEST-0003",
     identity_verified: false,
     last_sync_at: null,
+    doctors: [],
+    assigned_to_me: true,
+  },
+];
+/** Directory-only patient: visible to the whole clinic, but not assigned to the signed-in clinician. */
+export const demoOtherPatients: Patient[] = [
+  {
+    id: "00000000-0000-4000-8000-000000000004",
+    display_name: "Sam Ek",
+    identity_label: "TEST-0004",
+    identity_verified: true,
+    last_sync_at: "2026-11-16T14:05:00Z",
+    doctors: ["Dr. Berg"],
+    assigned_to_me: false,
   },
 ];
 export function demoDetail(patient: Patient): PatientDetail {

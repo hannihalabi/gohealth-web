@@ -17,6 +17,7 @@ import {
   History,
   ImageIcon,
   LayoutDashboard,
+  Lock,
   LockKeyhole,
   LogOut,
   Plus,
@@ -25,6 +26,7 @@ import {
   Stethoscope,
   Syringe,
   Users,
+  UsersRound,
   X,
 } from "lucide-react";
 import {
@@ -43,7 +45,7 @@ import {
   vitalKinds,
   vitalPageSize,
 } from "@/lib/model";
-import { demoDetail, demoPatients, demoPublish } from "@/lib/demo";
+import { demoDetail, demoOtherPatients, demoPatients, demoPublish } from "@/lib/demo";
 import { AdministrationWorkspace } from "@/components/administration";
 import { PresetField } from "@/components/preset-field";
 import { ImagingWorkspace } from "@/components/imaging-workspace";
@@ -138,7 +140,8 @@ export function Portal({
       correction?: boolean;
     } | null>(null),
     [publishing, setPublishing] = useState<ClinicalRecord | null>(null);
-  const [view, setView] = useState<"patients" | "attest">("patients"),
+  const [view, setView] = useState<"patients" | "all" | "attest">("patients"),
+    [allPatients, setAllPatients] = useState<Patient[] | null>(null),
     [attest, setAttest] = useState<PendingItem[] | null>(null),
     [attestError, setAttestError] = useState(""),
     [attestLoading, setAttestLoading] = useState(false),
@@ -245,17 +248,16 @@ export function Portal({
     setError("");
     setBusy(true);
     try {
+      const everyone = view === "all";
       if (demo) {
-        setPatients(
-          demoPatients.filter((p) =>
-            `${p.display_name} ${p.identity_label}`
-              .toLowerCase()
-              .includes(query.toLowerCase()),
-          ),
+        const matches = (everyone ? [...demoPatients, ...demoOtherPatients] : demoPatients).filter((p) =>
+          `${p.display_name} ${p.identity_label}`.toLowerCase().includes(query.toLowerCase()),
         );
+        if (everyone) setAllPatients(matches);
+        else setPatients(matches);
       } else {
-        const value = await api("clinical", { action: "list", query });
-        if (token === listRequestId.current) setPatients(value);
+        const value = await api("clinical", { action: everyone ? "directory" : "list", query });
+        if (token === listRequestId.current) (everyone ? setAllPatients : setPatients)(value);
       }
     } catch (e) {
       if (token === listRequestId.current) setError((e as Error).message);
@@ -263,6 +265,10 @@ export function Portal({
       if (token === listRequestId.current) setBusy(false);
     }
   }
+  useEffect(() => {
+    if (view === "all" && session) void search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, session]);
   const loadAttest = useCallback(async () => {
     if (!session) return;
     setAttestLoading(true);
@@ -533,6 +539,7 @@ export function Portal({
         links={links}
       />
     );
+  const rows = view === "all" ? (allPatients ?? []) : patients;
   const closeDetail = () => {
     requestId.current++;
     setDetail(null);
@@ -609,12 +616,26 @@ export function Portal({
             aria-label={`Mina patienter (${patients.length})`}
             onClick={() => {
               setView("patients");
+              setQuery("");
               closeDetail();
             }}
           >
             <Users size={17} />
             <span className="nav-label">Mina patienter</span>
             <span className="nav-count">{patients.length}</span>
+          </button>
+          <button
+            className={"nav-item" + (view === "all" ? " selected" : "")}
+            aria-label="Alla patienter"
+            onClick={() => {
+              setView("all");
+              setQuery("");
+              closeDetail();
+            }}
+          >
+            <UsersRound size={17} />
+            <span className="nav-label">Alla patienter</span>
+            {allPatients && <span className="nav-count">{allPatients.length}</span>}
           </button>
           <button
             className={"nav-item" + (view === "attest" ? " selected" : "")}
@@ -673,8 +694,8 @@ export function Portal({
                   className={!detail ? "active" : ""}
                   onClick={closeDetail}
                 >
-                  {view === "attest" ? <ClipboardCheck size={15} /> : <Users size={15} />}
-                  {view === "attest" ? "Attestering" : "Mina patienter"}
+                  {view === "attest" ? <ClipboardCheck size={15} /> : view === "all" ? <UsersRound size={15} /> : <Users size={15} />}
+                  {view === "attest" ? "Attestering" : view === "all" ? "Alla patienter" : "Mina patienter"}
                 </button>
                 {detail && (
                   <span role="tab" aria-selected className="active wb-patient-tab">
@@ -734,15 +755,16 @@ export function Portal({
                       <th>Patient <i>text</i></th>
                       <th>Personnummer <i>text</i></th>
                       <th>Identitet <i>status</i></th>
+                      <th>Tilldelad läkare <i>text</i></th>
                       <th>Senaste datasynk <i>tid</i></th>
                       <th />
                     </tr>
                   </thead>
                   <tbody>
-                    {patients.map((p) => (
-                      <tr key={p.id} onClick={() => open(p)}>
+                    {rows.map((p) => (
+                      <tr key={p.id} className={p.assigned_to_me === false ? "is-locked" : ""} title={p.assigned_to_me === false ? "Du har ingen behandlingsrelation till patienten" : undefined} onClick={() => p.assigned_to_me !== false && open(p)}>
                         <td>
-                          <button className="patient-link" onClick={(e) => { e.stopPropagation(); void open(p); }}>
+                          <button className="patient-link" disabled={p.assigned_to_me === false} onClick={(e) => { e.stopPropagation(); void open(p); }}>
                             <span className="patient-avatar">{initialsOf(p.display_name)}</span>
                             <strong>{p.display_name}</strong>
                           </button>
@@ -753,6 +775,7 @@ export function Portal({
                             {p.identity_verified ? "Verifierad" : "Kontroll återstår"}
                           </span>
                         </td>
+                        <td>{p.doctors?.length ? p.doctors.join(", ") : "-"}</td>
                         <td>
                           {p.last_sync_at ? (
                             timestamp(p.last_sync_at)
@@ -761,22 +784,29 @@ export function Portal({
                           )}
                         </td>
                         <td className="grid-open">
-                          <ArrowRight size={16} aria-label={`Öppna ${p.display_name}`} />
+                          {p.assigned_to_me === false ? (
+                            <Lock size={15} aria-label="Ingen behandlingsrelation" />
+                          ) : (
+                            <ArrowRight size={16} aria-label={`Öppna ${p.display_name}`} />
+                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {!patients.length && (
+                {!rows.length && (
                   <Empty
                     title="Inga patienter att visa"
-                    description="En administratör behöver koppla ditt personalkonto till verifierade patienter."
+                    description={view === "all" ? "Inga patienter matchar sökningen." : "En administratör behöver koppla ditt personalkonto till verifierade patienter."}
                   />
                 )}
               </div>
               <div className="grid-footer">
                 <span>Sida 1 av 1</span>
-                <span>{patients.length} {patients.length === 1 ? "patient" : "patienter"}</span>
+                <span>
+                  {view === "all" ? "Tilldelning ändras i administrationsportalen · " : ""}
+                  {rows.length} {rows.length === 1 ? "patient" : "patienter"}
+                </span>
               </div>
             </div>
           ) : (

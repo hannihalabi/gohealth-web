@@ -119,6 +119,10 @@ export type Patient = {
   identity_label: string;
   identity_verified: boolean;
   last_sync_at: string | null;
+  /** Active doctors assigned to the patient. Changed only from the administration portal. */
+  doctors?: string[];
+  /** False when the patient is visible in the clinic directory but the signed-in clinician has no care relation. */
+  assigned_to_me?: boolean;
 };
 export type Vital = {
   id: string;
