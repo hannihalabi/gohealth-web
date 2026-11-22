@@ -15,6 +15,7 @@ export type Integration = {
   description: string;
   connected: boolean;
   updated_at: string;
+  last_activity_at?: string | null;
 };
 export type OverviewData = {
   integrations: Integration[];
@@ -56,6 +57,7 @@ export function demoOverview(
     integrations: kinds.map((kind, i) => ({
       id: kind, kind, name: names[i], description: descriptions[i],
       connected: kind !== "website", updated_at: checkedAt,
+      last_activity_at: kind === "website" ? null : new Date(Date.now() - (i + 1) * 300000).toISOString(),
     })),
     checkedAt, members: visible.slice(memberOffset, memberOffset + 50),
     memberTotal: visible.length, memberOffset, memberLimit: 50, memberPortal,
@@ -65,4 +67,16 @@ export function demoOverview(
       pending,
     },
   };
+}
+
+// Relative Swedish label for the last recorded activity; no activity is stated plainly.
+export function activityLabel(at: string | null | undefined, now = Date.now()) {
+  if (!at) return "Ingen aktivitet ännu";
+  const minutes = Math.max(0, Math.floor((now - new Date(at).getTime()) / 60000));
+  if (minutes < 1) return "Aktiv just nu";
+  if (minutes < 60) return `Senast aktiv för ${minutes} min sedan`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Senast aktiv för ${hours} tim sedan`;
+  const days = Math.floor(hours / 24);
+  return `Senast aktiv för ${days} ${days === 1 ? "dag" : "dagar"} sedan`;
 }

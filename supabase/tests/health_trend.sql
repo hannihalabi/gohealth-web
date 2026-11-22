@@ -33,8 +33,8 @@ insert into clinical_private.health_measurements(patient_id, source_id, kind, va
 select 'c9000000-0000-4000-8000-000000000001', gen_random_uuid(), 'resting-heart-rate', v, 'count/min', t, t, 'Synthetic', 'test', '{}'
 from (values (60.0, now() - interval '2 hours'), (70.0, now() - interval '3 hours'), (50.0, now() - interval '3 days')) as x(v, t);
 insert into clinical_private.health_measurements(patient_id, source_id, kind, value, unit, start_at, end_at, source, definition, metadata) values
-  ('c9000000-0000-4000-8000-000000000001', gen_random_uuid(), 'sleep', null, 'interval', now() - interval '2 days 8 hours', now() - interval '2 days 3 hours', 'Synthetic', 'test', '{}'),
-  ('c9000000-0000-4000-8000-000000000001', gen_random_uuid(), 'sleep', null, 'interval', now() - interval '2 days 6 hours', now() - interval '2 days 1 hour', 'Synthetic', 'test', '{}');
+  ('c9000000-0000-4000-8000-000000000001', gen_random_uuid(), 'sleep', null, 'interval', date_trunc('day', now()) - interval '2 days 2 hours', date_trunc('day', now()) - interval '2 days' + interval '3 hours', 'Synthetic', 'test', '{}'),
+  ('c9000000-0000-4000-8000-000000000001', gen_random_uuid(), 'sleep', null, 'interval', date_trunc('day', now()) - interval '2 days' + interval '0 hours', date_trunc('day', now()) - interval '2 days' + interval '5 hours', 'Synthetic', 'test', '{}');
 
 set local role authenticated;
 select pg_temp.ht_claims(1);

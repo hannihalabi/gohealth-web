@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Activity, Check, Database, Globe2, LayoutDashboard, RefreshCw, ShieldCheck, Smartphone, Stethoscope, Users, Zap } from "lucide-react";
 import { invitationState, roleNames, type AdministrationData } from "@/lib/administration";
-import { demoOverview, integrationPositions, type Integration, type OverviewData } from "@/lib/overview";
+import { activityLabel, demoOverview, integrationPositions, type Integration, type OverviewData } from "@/lib/overview";
 import { DatabaseHealthPanel } from "./database-health";
 import { AdminSummary } from "./admin-summary";
 import "./system-overview.css";
@@ -114,7 +114,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, showDa
 }) {
   const selected = data?.integrations.find((i) => i.id === selectedId);
   const positions = integrationPositions(data?.integrations.length ?? 0);
-  const connected = data?.integrations.filter((i) => i.connected).length;
+  const connected = data?.integrations.filter((i) => i.last_activity_at).length;
   const offset = data?.memberOffset ?? 0;
   return <section className="system-overview" aria-label="Systemöversikt">
     <div className="overview-heading">
@@ -122,7 +122,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, showDa
       <button className="button secondary" disabled={busy} onClick={onRefresh}><RefreshCw size={16} className={busy ? "overview-spinning" : ""} />Uppdatera</button>
     </div>
     <div className="overview-metrics">
-      <div><span className="overview-metric-icon"><Database size={19} /></span><div><strong>{data ? connected : "—"}</strong><span>Anslutna system</span></div></div>
+      <div><span className="overview-metric-icon"><Database size={19} /></span><div><strong>{data ? connected : "—"}</strong><span>System med aktivitet</span></div></div>
       <div><span className="overview-metric-icon"><Users size={19} /></span><div><strong>{data ? data.counts.clinician : "—"}</strong><span>Aktiva kliniska behörigheter</span></div></div>
       <div><span className="overview-metric-icon"><ShieldCheck size={19} /></span><div><strong>{data ? data.counts.pending : "—"}</strong><span>Väntar på aktivering</span></div></div>
     </div>
@@ -151,7 +151,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, showDa
                 aria-pressed={selectedId === integration.id} onClick={() => onSelect(integration)}>
                 <span className="overview-node-icon"><Icon size={24} /></span>
                 <strong>{integration.name}</strong>
-                <span className="overview-node-status">{integration.connected ? <Check size={12} /> : <span className="overview-satellite-dot" />}{integration.connected ? "Ansluten" : "Ej ansluten"}</span>
+                <span className="overview-node-status">{integration.last_activity_at ? <Check size={12} /> : <span className="overview-satellite-dot" />}{activityLabel(integration.last_activity_at)}</span>
                 {(integration.kind === "clinician" || integration.kind === "admin") && <span className="overview-node-users"><Users size={13} />{data.counts[integration.kind]} {data.counts[integration.kind] === 1 ? "aktiv behörighet" : "aktiva behörigheter"}</span>}
               </button>;
             })}
@@ -163,7 +163,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, showDa
         {showDatabase ? <DatabaseHealthPanel organizationId={organizationId} demo={demo} /> : selected && data ? <>
           <div className="overview-detail-icon">{(() => { const Icon = icons[selected.kind]; return <Icon size={24} />; })()}</div>
           <h2>{selected.name}</h2>
-          <div className={"overview-connection-state " + (!selected.connected ? "is-satellite" : "")}><span className="overview-signal" />{selected.connected ? "Ansluten till Supabase" : "Fristående satellit"}</div>
+          <div className={"overview-connection-state " + (!selected.connected ? "is-satellite" : "")}><span className="overview-signal" />{activityLabel(selected.last_activity_at)}</div>
           {selected.kind === "admin" && <AdminSummary organizationId={organizationId} demo={demo} administration={administration} />}
           {selected.kind === "admin" || selected.kind === "clinician" ? <>
             <div className="overview-users-heading"><h3>Användare</h3><span>{data.memberTotal}</span></div>
