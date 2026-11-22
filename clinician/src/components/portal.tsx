@@ -1414,36 +1414,8 @@ function Login({
   }
   return (
     <main className="auth-shell">
-      <section className="auth-story">
+      <section className="auth-story" aria-label="GoHealth">
         <Brand />
-        <div>
-          <p className="eyebrow">GOHEALTH FÖR VÅRDTEAM</p>
-          <h1>
-            {administration ? "Rätt team." : "Mer sammanhang."}
-            <br />
-            {administration ? "Tryggare åtkomst" : "Bättre uppföljning"}<span>.</span>
-          </h1>
-          <p>
-            {administration
-              ? "Hantera personal, behörigheter och patienttilldelningar för din mottagning."
-              : "Patientens mätningar, undersökningar och provsvar samlade i en trygg arbetsyta."}
-          </p>
-          <div className="story-features">
-            <span>
-              <FlaskConical />
-              {administration ? "Personal och roller" : "Blodprover och trender"}
-            </span>
-            <span>
-              <Activity />
-              {administration ? "Patienttilldelningar" : "Delade hälsomätningar"}
-            </span>
-            <span>
-              <ShieldCheck />
-              Spårbar granskning
-            </span>
-          </div>
-        </div>
-        <small>GoHealth · Kontinuitet genom hela patientresan</small>
       </section>
       <section className="auth-card">
         <div className="auth-icon">
