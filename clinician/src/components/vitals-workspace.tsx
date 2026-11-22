@@ -1,6 +1,6 @@
 "use client";
 import { ArrowLeft, ChevronDown, ChevronUp, Minus, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PatientDetail, Vital } from "@/lib/model";
 import {
   duration, formatVital, mergeSamples, metricCatalog, metricTitle,
@@ -20,8 +20,50 @@ async function request(body: unknown) {
     cache: "no-store",
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Mätningarna kunde inte hämtas.");
+  if (!response.ok) throw Object.assign(new Error(result.error || "Mätningarna kunde inte hämtas."), { status: response.status });
   return result;
+}
+
+// Transient failures (network, 5xx) are retried quietly so the user does not have to press Uppdatera repeatedly.
+async function withRetry<T>(task: () => Promise<T>, tries = 3): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await task();
+    } catch (e) {
+      last = e;
+      const status = (e as { status?: number }).status;
+      if (status !== undefined && status < 500) break;
+      if (i < tries - 1) await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+  throw last;
+}
+
+function LoadBar({ loading, done, total }: { loading: boolean; done: number; total: number }) {
+  const [p, setP] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const ceiling = useRef(0);
+  ceiling.current = 55 + (done / total) * 40;
+  useEffect(() => {
+    if (loading) {
+      setVisible(true);
+      setP(8);
+      const id = setInterval(() => setP((v) => v + (ceiling.current - v) * 0.1), 120);
+      return () => clearInterval(id);
+    }
+    setP(100);
+    const t = setTimeout(() => { setVisible(false); setP(0); }, 600);
+    return () => clearTimeout(t);
+  }, [loading]);
+  if (!visible) return null;
+  const label = loading ? (done === 0 ? "Hämtar mätvärden…" : "Hämtar trender…") : "Klart";
+  return (
+    <div className="vt-load" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(p)}>
+      <div className="vt-load-track"><div className="vt-load-fill" style={{ width: `${p}%` }} /></div>
+      <span>{label}</span>
+    </div>
+  );
 }
 const time = (date: string) => new Date(date).toLocaleString("sv-SE");
 const shortDay = (day: string) => new Date(day + "T12:00:00Z").toLocaleDateString("sv-SE", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -50,17 +92,29 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
   const [overview, setOverview] = useState<VitalsOverview | null>(null);
   const [trend, setTrend] = useState<TrendResponse | null>(null);
   const [error, setError] = useState("");
+  const [overviewError, setOverviewError] = useState("");
+  const [trendError, setTrendError] = useState("");
+  const [done, setDone] = useState(0);
   const [version, setVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<Range>(30);
   const [selected, setSelected] = useState<string | null>(null);
+  const patientRef = useRef(detail.patient.id);
+  const demoVitals = demo ? detail.vitals : undefined;
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setDone(0);
     setError("");
-    setOverview(null);
-    const overviewTask: Promise<VitalsOverview> = demo
+    setOverviewError("");
+    setTrendError("");
+    if (patientRef.current !== detail.patient.id) {
+      patientRef.current = detail.patient.id;
+      setOverview(null);
+      setTrend(null);
+    }
+    const loadOverview = (): Promise<VitalsOverview> => demo
       ? Promise.resolve({
           metrics: metricCatalog.flatMap(([kind]) => {
             const values = detail.vitals.filter((v) => v.kind === kind).sort((a, b) => b.end_at.localeCompare(a.end_at));
@@ -69,25 +123,24 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
           sleep_night: null,
         })
       : request({ action: "vitals_overview", patientId: detail.patient.id });
-    const trendTask: Promise<TrendResponse> = demo
+    const loadTrend = (): Promise<TrendResponse> => demo
       ? Promise.resolve({ days: 90, series: rowsFromVitals(detail.vitals) })
       : request({ action: "vitals_trend", patientId: detail.patient.id, days: 90 });
-    Promise.all([overviewTask, trendTask])
-      .then(([o, t]) => {
-        if (!active) return;
-        setOverview(o);
-        setTrend(t);
-      })
-      .catch((e) => {
-        if (active) setError(e.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    // Each part loads and fails on its own, so one failure never blanks the whole view.
+    const overviewTask = withRetry(loadOverview)
+      .then((o) => { if (active) setOverview(o); })
+      .catch((e) => { if (active) setOverviewError(e.message || "Mätvärdena kunde inte hämtas."); })
+      .finally(() => { if (active) setDone((d) => d + 1); });
+    const trendTask = withRetry(loadTrend)
+      .then((t) => { if (active) setTrend(t); })
+      .catch(() => { if (active) setTrendError("Trenderna kunde inte hämtas."); })
+      .finally(() => { if (active) setDone((d) => d + 1); });
+    Promise.all([overviewTask, trendTask]).then(() => { if (active) setLoading(false); });
     return () => {
       active = false;
     };
-  }, [detail.patient.id, demo, version, detail.vitals]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail.patient.id, demo, version, demoVitals]);
 
   async function refresh() {
     setLoading(true);
@@ -144,8 +197,14 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
           </button>
         </div>
       </header>
+      <LoadBar loading={loading} done={done} total={2} />
       {error && <p className="alert error" role="alert">{error}</p>}
-      {loading && !overview && <p role="status">Hämtar mätvärden…</p>}
+      {(overviewError || trendError) && !loading && (
+        <div className="alert error vt-retry" role="alert">
+          <span>{overviewError ? `${overviewError}${overview ? " Visar senast hämtade värden." : ""}` : trendError}</span>
+          <button type="button" className="button secondary" onClick={() => setVersion((v) => v + 1)}>Försök igen</button>
+        </div>
+      )}
       {overview && !selectedMetric && (
         <>
           {groups.map((g) => (
@@ -153,7 +212,7 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
               <h3>{g.title}</h3>
               <div className="vt-grid">
                 {g.metrics.map((m) => (
-                  <MetricTile key={m.kind} metric={m} points={seriesFor(trend?.series ?? [], m.kind)} range={range}
+                  <MetricTile key={m.kind} metric={m} points={seriesFor(trend?.series ?? [], m.kind)} range={range} trendFailed={!!trendError && !trend}
                     night={m.kind === "sleep" ? overview.sleep_night : null} onOpen={() => setSelected(m.kind)} />
                 ))}
               </div>
@@ -195,7 +254,8 @@ export function VitalsWorkspace({ detail, demo, onRefresh }: { detail: PatientDe
   );
 }
 
-function Spark({ points, bars }: { points: DayPoint[]; bars: boolean }) {
+function Spark({ points, bars, failed }: { points: DayPoint[]; bars: boolean; failed?: boolean }) {
+  if (failed) return <div className="vt-spark vt-spark-empty">Trenden kunde inte hämtas</div>;
   const w = 200;
   const h = 44;
   if (points.length < 2) return <div className="vt-spark vt-spark-empty">{points.length ? "En dag med data" : "Ingen trend i perioden"}</div>;
@@ -237,7 +297,7 @@ function Delta({ points }: { points: DayPoint[] }) {
   );
 }
 
-function MetricTile({ metric, points, range, night, onOpen }: { metric: VitalSummary; points: DayPoint[]; range: Range; night: VitalsOverview["sleep_night"]; onOpen: () => void }) {
+function MetricTile({ metric, points, range, night, onOpen, trendFailed }: { metric: VitalSummary; points: DayPoint[]; range: Range; trendFailed?: boolean; night: VitalsOverview["sleep_night"]; onOpen: () => void }) {
   const inRange = lastDays(points, range);
   const bars = sumKinds.has(metric.kind);
   return (
@@ -247,7 +307,7 @@ function MetricTile({ metric, points, range, night, onOpen }: { metric: VitalSum
         <Delta points={points} />
       </div>
       <strong>{night ? duration(night.seconds) : formatVital(metric.latest)}</strong>
-      <Spark points={inRange} bars={bars} />
+      <Spark points={inRange} bars={bars} failed={trendFailed} />
       <small>
         {night ? `Natt till ${night.day}` : ago(metric.latest.end_at)} · {metric.count.toLocaleString("sv-SE")} mätningar
       </small>

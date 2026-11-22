@@ -53,3 +53,9 @@
 .vt-raw { margin-top: 4px; border: 1px solid var(--line); border-radius: 12px; padding: 4px 14px 12px; }
 .vt-raw > summary { cursor: pointer; padding: 10px 0; font-weight: 600; color: var(--plum); }
 @media (max-width: 700px) { .vt { padding: 16px; } .vt-tools { width: 100%; justify-content: space-between; } }
+
+.vt-load { margin: 0 0 16px; display: grid; gap: 6px; }
+.vt-load span { color: var(--muted); font-size: 12px; }
+.vt-load-track { height: 6px; border-radius: 999px; background: #bb327818; overflow: hidden; }
+.vt-load-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #bb3278, #d46aa3); transition: width .15s linear; }
+.vt-retry { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
