@@ -1,0 +1,10 @@
+.role-badge { display: inline-flex; align-items: center; padding: 3px 9px 3px 8px; border-left: 4px solid #b9b9b9; border-radius: 4px;
+  color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; line-height: 1.25; white-space: nowrap;
+  box-shadow: 0 1px 2px #29223626; vertical-align: middle; }
+.role-badge.is-small { padding: 1px 7px 1px 6px; border-left-width: 3px; font-size: 10px; }
+.role-doctor { background: #c1272d; }
+.role-nurse { background: #005ea5; }
+.role-psychologist { background: #f39200; }
+.role-secretary { background: #66308a; }
+.role-admin { background: #4b4553; }
+.role-other { background: #6b7280; }

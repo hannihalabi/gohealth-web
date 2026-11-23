@@ -28,6 +28,7 @@ import {
 import {
   administrationCommand,
   invitationState,
+  clinicalRoles,
   roleNames,
   type AdminCommand,
   type AdministrationData,
@@ -39,6 +40,7 @@ import {
 } from "@/lib/administration";
 import { normalizeSearch } from "@/lib/model";
 import { PatientsOverview } from "@/components/patients-overview";
+import { RoleBadge } from "@/components/role-badge";
 import { AnnouncementsPanel } from "@/components/announcements-panel";
 import { SystemOverview } from "@/components/overview/system-overview";
 import { OrganizationChart } from "@/components/overview/organization-chart";
@@ -564,7 +566,7 @@ export function AdministrationWorkspace({
                             <strong>{m.display_name}</strong>
                             <small className="admin-secondary">{m.email}</small>
                           </td>
-                          <td>{roleNames[m.role]}</td>
+                          <td><RoleBadge role={m.role} /></td>
                           <td>
                             <span className="pill">
                               {m.active ? "Aktiv" : "Inaktiv"}
@@ -623,7 +625,7 @@ export function AdministrationWorkspace({
                                 {i.email}
                               </small>
                             </td>
-                            <td>{roleNames[i.role]}</td>
+                            <td><RoleBadge role={i.role} /></td>
                             <td>{invitationState(i)}</td>
                             <td>
                               {invitationState(i) ===
@@ -1019,10 +1021,10 @@ function AdminEditor({
                 onChange={(e) => setRole(e.target.value as StaffRole)}
               >
                 {(editor.kind === "invite"
-                  ? ["doctor", "nurse", "admin"]
+                  ? [...clinicalRoles, "admin"]
                   : m?.role === "admin"
                     ? ["admin"]
-                    : ["doctor", "nurse"]
+                    : [...clinicalRoles]
                 ).map((r) => (
                   <option key={r} value={r}>
                     {roleNames[r as StaffRole]}
@@ -1285,7 +1287,7 @@ function Dashboard({
                 <li key={m.user_id}>
                   <span>
                     {m.display_name}
-                    <small>{roleNames[m.role]}</small>
+                    <small><RoleBadge role={m.role} small /></small>
                   </span>
                   <i style={{ width: (n / max) * 100 + "%" }} />
                   <b>{n}</b>

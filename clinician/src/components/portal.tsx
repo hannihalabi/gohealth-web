@@ -4,6 +4,7 @@ import { ClinicianHome } from "@/components/clinician-home";
 import { ConsultDialog } from "@/components/consult-dialog";
 import { PatientMessages } from "@/components/patient-messages";
 import { InboxView } from "@/components/inbox-view";
+import { RoleBadge } from "@/components/role-badge";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Activity,
@@ -624,9 +625,8 @@ export function Portal({
         </form>
         <div className="topbar-user">
           <span className="topbar-user-label">Inloggad som:</span>
-          <strong>
-            {session.name} ({session.role === "doctor" ? "Läkare" : session.role === "nurse" ? "Sjuksköterska" : "Vårdpersonal"})
-          </strong>
+          <strong>{session.name}</strong>
+          <RoleBadge role={session.role} />
           {session.admin && (
             <a className="topbar-user-admin" href={demo ? "/demo/admin" : links.administration}>
               <ShieldCheck size={15} />

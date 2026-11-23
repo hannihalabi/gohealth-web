@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Activity, Check, Database, Globe2, LayoutDashboard, RefreshCw, ShieldCheck, Smartphone, Stethoscope, Users, Zap } from "lucide-react";
 import { invitationState, roleNames, type AdministrationData } from "@/lib/administration";
+import { RoleBadge } from "@/components/role-badge";
 import { activityLabel, demoOverview, integrationPositions, type Integration, type OverviewData } from "@/lib/overview";
 import { DatabaseHealthPanel } from "./database-health";
 import { AdminSummary } from "./admin-summary";
@@ -167,7 +168,7 @@ export function SystemOverviewView({ data, selectedId, busy, error, demo, showDa
           {selected.kind === "admin" && <AdminSummary organizationId={organizationId} demo={demo} administration={administration} />}
           {selected.kind === "admin" || selected.kind === "clinician" ? <>
             <div className="overview-users-heading"><h3>Användare</h3><span>{data.memberTotal}</span></div>
-            <ul className="overview-users">{data.members.map((member) => <li key={member.user_id + member.role}><span className="overview-user-avatar">{initials(member.display_name)}</span><div><strong>{member.display_name}</strong><span>{roleNames[member.role]} · {member.active ? "Aktiv" : "Inaktiv"}</span><small>{member.email}</small></div></li>)}</ul>
+            <ul className="overview-users">{data.members.map((member) => <li key={member.user_id + member.role}><span className="overview-user-avatar">{initials(member.display_name)}</span><div><strong>{member.display_name}</strong><span><RoleBadge role={member.role} small /> {member.active ? "Aktiv" : "Inaktiv"}</span><small>{member.email}</small></div></li>)}</ul>
             {!data.members.length && <p className="overview-empty">Inga användare finns på den här sidan.</p>}
             {(data.memberTotal > data.memberLimit || offset > 0) && <div className="overview-pagination"><button disabled={!offset || busy} onClick={() => onPage(Math.max(0, offset - data.memberLimit))}>Föregående</button><span>{offset + 1}–{offset + data.members.length} av {data.memberTotal}</span><button disabled={offset + data.members.length >= data.memberTotal || busy} onClick={() => onPage(offset + data.memberLimit)}>Nästa</button></div>}
             <button className="button secondary overview-manage" onClick={onStaff}><Users size={16} />Hantera personal</button>

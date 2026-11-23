@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Building2, HeartPulse, Network, RefreshCw, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
 import { invitationState, type AdminCommand, type AdministrationData, type Member } from "@/lib/administration";
+import { RoleBadge } from "@/components/role-badge";
 import { DirectoryError, groupCareTeams, readOrganizationDirectory, type OrganizationDirectory } from "@/lib/organization-directory";
 import "./organization-chart.css";
 
@@ -100,6 +101,7 @@ function PersonCard({ member, disabled, currentUserId, onMember, onTeam }: {
       onClick={() => onMember(member)} title={member.email} aria-label={`Hantera ${member.display_name}`}>
       <span className="team-map-avatar">{member.display_name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("")}</span>
       <span className="team-person-name"><strong>{member.display_name}</strong>
+        {(member.role === "psychologist" || member.role === "secretary") && <RoleBadge role={member.role} small />}
         {!member.active && <small>Inaktiv</small>}
       </span>
       {member.active && <span className="team-person-active" role="img" aria-label="Aktiv" />}
@@ -120,7 +122,7 @@ export function OrganizationChartView({ organizationName, directory, busy, error
   onMember: (member: Member) => void; onTeam: (member: Member) => void;
 }) {
   const members = directory?.members ?? [];
-  const { administrators, teams, unassigned } = groupCareTeams(members);
+  const { administrators, teams, unassigned, others } = groupCareTeams(members);
   const people = new Set(members.filter((m) => m.active).map((m) => m.user_id)).size;
   const locked = editing || busy || !!error;
   const limit = (key: string) => visible[key] ?? 3;
@@ -156,6 +158,11 @@ export function OrganizationChartView({ organizationName, directory, busy, error
             {more("unassigned", unassigned.length)}
           </div>}
         </section>
+        {!!others.length && <section className="team-map-branch" aria-label="Övrig vårdpersonal">
+          <div className="team-map-role"><Users size={19}/><h3>Övrig vårdpersonal</h3><span>{others.length}</span></div>
+          <ul className="team-map-people">{others.slice(0, limit("others")).map((member) => <li key={member.user_id}>{card(member)}</li>)}</ul>
+          {more("others", others.length)}
+        </section>}
       </div>
     </div>}
   </section>;

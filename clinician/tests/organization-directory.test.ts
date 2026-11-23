@@ -79,3 +79,10 @@ test("unavailable doctors and inactive nurses cannot create a misleading team", 
   assert.ok(groups.teams.every((team) => team.nurses.length === 0));
   assert.equal(groups.unassigned.length, 3);
 });
+test("psychologists and medical secretaries are listed outside the doctor–nurse teams", () => {
+  const groups = groupCareTeams([member(1), member(2, "nurse"), member(3, "psychologist"), member(4, "secretary"), member(5, "admin")]);
+  assert.deepEqual(groups.others.map((m) => m.role).sort(), ["psychologist", "secretary"]);
+  assert.equal(groups.teams.length, 1);
+  assert.equal(groups.administrators.length, 1);
+  assert.ok(!groups.unassigned.some((m) => m.role === "psychologist" || m.role === "secretary"));
+});

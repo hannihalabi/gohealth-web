@@ -2,8 +2,12 @@ import { z } from "zod";
 export const roleNames = {
   doctor: "Läkare",
   nurse: "Sjuksköterska",
+  psychologist: "Psykolog",
+  secretary: "Medicinsk sekreterare",
   admin: "Administratör",
 } as const;
+/** Clinical roles. Only doctors publish and see every patient in the clinic; the others work with assigned patients. */
+export const clinicalRoles = ["doctor", "nurse", "psychologist", "secretary"] as const;
 export type StaffRole = keyof typeof roleNames;
 export type PortalSession = {
   staff: boolean;
@@ -49,7 +53,7 @@ export const administrationCommand = z.discriminatedUnion("action", [
       ...organization,
       name: name(),
       email,
-      role: z.enum(["doctor", "nurse", "admin"]),
+      role: z.enum(["doctor", "nurse", "psychologist", "secretary", "admin"]),
       identityAttested: z.boolean(),
     })
     .strict(),
@@ -67,7 +71,7 @@ export const administrationCommand = z.discriminatedUnion("action", [
       ...organization,
       userId: z.uuid(),
       name: name(),
-      role: z.enum(["doctor", "nurse", "admin"]),
+      role: z.enum(["doctor", "nurse", "psychologist", "secretary", "admin"]),
       memberType: z.enum(["clinical", "admin"]),
       active: z.boolean(),
       identityAttested: z.boolean(),

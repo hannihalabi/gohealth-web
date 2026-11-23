@@ -66,5 +66,7 @@ export function groupCareTeams(members: Member[]) {
     administrators: ordered(members.filter((m) => m.role === "admin")),
     teams: doctors.map((doctor) => ({ doctor, nurses: nurses.filter((n) => n.active && doctor.active && n.doctor_id === doctor.user_id) })),
     unassigned: nurses.filter((n) => !n.active || !n.doctor_id || !validDoctorIds.has(n.doctor_id)),
+    /** Psychologists and medical secretaries: clinical staff outside the doctor–nurse care teams. */
+    others: ordered(members.filter((m) => m.role === "psychologist" || m.role === "secretary")),
   };
 }
