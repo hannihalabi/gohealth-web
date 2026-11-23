@@ -30,6 +30,7 @@ import {
   invitationState,
   clinicalRoles,
   roleNames,
+  teamRoles,
   type AdminCommand,
   type AdministrationData,
   type AdminPatient,
@@ -280,7 +281,7 @@ export function AdministrationWorkspace({
             revision: m.revision + 1,
           });
           for (const person of value.members) {
-            if (person.doctor_id && ((person.user_id === m.user_id && (!m.active || m.role !== "nurse")) ||
+            if (person.doctor_id && ((person.user_id === m.user_id && (!m.active || !teamRoles.includes(m.role))) ||
               (person.doctor_id === m.user_id && (!m.active || m.role !== "doctor")))) {
               person.doctor_id = null;
               person.team_revision = (person.team_revision ?? 0) + 1;
@@ -294,9 +295,9 @@ export function AdministrationWorkspace({
             );
         }
         if (parsed.action === "careTeam") {
-          const nurse = value.members.find((x) => x.user_id === parsed.nurseId && x.role === "nurse" && x.active);
+          const nurse = value.members.find((x) => x.user_id === parsed.nurseId && teamRoles.includes(x.role) && x.active);
           const doctor = value.members.find((x) => x.user_id === parsed.doctorId && x.role === "doctor" && x.active);
-          if (!nurse || (parsed.doctorId && !doctor)) throw new Error("Välj en aktiv läkare och sjuksköterska.");
+          if (!nurse || (parsed.doctorId && !doctor)) throw new Error("Välj en aktiv läkare och teammedlem.");
           if ((nurse.team_revision ?? 0) !== parsed.revision) throw new Error("Teamet har ändrats. Uppdatera kartan.");
           nurse.doctor_id = parsed.doctorId;
           nurse.team_revision = (nurse.team_revision ?? 0) + 1;
@@ -902,7 +903,10 @@ function AdminEditor({
     [identity, setIdentity] = useState(""),
     [attested, setAttested] = useState(false),
     [clinician, setClinician] = useState(""),
+    [doctor, setDoctor] = useState(m?.doctor_id ?? ""),
     [error, setError] = useState("");
+  const doctors = data.members.filter((x) => x.role === "doctor" && x.active && x.user_id !== m?.user_id);
+  const inTeam = editor.kind === "member" && teamRoles.includes(role) && active;
   const title =
     editor.kind === "invite"
       ? "Lägg till personal"
@@ -972,6 +976,16 @@ function AdminEditor({
                     id: editor.invitation.id,
                     revision: editor.invitation.revision,
                   };
+      if (editor.kind === "member") {
+        const member = editor.member;
+        const memberChanged = name !== member.display_name || role !== member.role || active !== member.active;
+        const teamChanged = inTeam && doctor !== (member.doctor_id ?? "");
+        // Everyone outside the doctors works in a doctor's team; the team is its own change with its own revision.
+        if (memberChanged || !teamChanged) await onSave(command);
+        if (teamChanged)
+          await onSave({ action: "careTeam", organizationId, nurseId: member.user_id, doctorId: doctor || null, revision: member.team_revision ?? 0 });
+        return;
+      }
       await onSave(command);
     } catch (e) {
       setError((e as Error).message);
@@ -1032,10 +1046,25 @@ function AdminEditor({
                 ))}
               </select>
             </label>
+            {inTeam && (
+              <label>
+                Läkare (team)
+                <select value={doctor} onChange={(e) => setDoctor(e.target.value)}>
+                  <option value="">Ingen läkare</option>
+                  {doctors.map((d) => (
+                    <option key={d.user_id} value={d.user_id}>
+                      {d.display_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <p className="muted">
               {role === "admin"
                 ? "Administratören kan hantera personal och patienttilldelningar. Rollen ger ingen automatisk klinisk läsbehörighet."
-                : "Patientåtkomst kräver separat tilldelning. Bara läkare får publicera kliniska svar."}
+                : role === "doctor"
+                  ? "Läkaren ser alla patienter i kliniken och får publicera kliniska svar."
+                  : "Arbetar i läkarens team. Patientåtkomst kräver separat tilldelning. Bara läkare får publicera kliniska svar."}
             </p>
           </>
         )}

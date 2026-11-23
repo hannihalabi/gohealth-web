@@ -79,10 +79,12 @@ test("unavailable doctors and inactive nurses cannot create a misleading team", 
   assert.ok(groups.teams.every((team) => team.nurses.length === 0));
   assert.equal(groups.unassigned.length, 3);
 });
-test("psychologists and medical secretaries are listed outside the doctor–nurse teams", () => {
-  const groups = groupCareTeams([member(1), member(2, "nurse"), member(3, "psychologist"), member(4, "secretary"), member(5, "admin")]);
-  assert.deepEqual(groups.others.map((m) => m.role).sort(), ["psychologist", "secretary"]);
-  assert.equal(groups.teams.length, 1);
+test("nurses, psychologists and medical secretaries all work in a doctor's team", () => {
+  const doctor = member(1);
+  const team = [member(2, "nurse"), member(3, "psychologist"), member(4, "secretary")].map((m) => ({ ...m, doctor_id: doctor.user_id }));
+  const loose = { ...member(5, "psychologist"), doctor_id: null };
+  const groups = groupCareTeams([doctor, ...team, loose, member(6, "admin")]);
+  assert.deepEqual(groups.teams[0].nurses.map((m) => m.role).sort(), ["nurse", "psychologist", "secretary"]);
+  assert.deepEqual(groups.unassigned.map((m) => m.user_id), [loose.user_id]);
   assert.equal(groups.administrators.length, 1);
-  assert.ok(!groups.unassigned.some((m) => m.role === "psychologist" || m.role === "secretary"));
 });

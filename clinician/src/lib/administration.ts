@@ -8,6 +8,8 @@ export const roleNames = {
 } as const;
 /** Clinical roles. Only doctors publish and see every patient in the clinic; the others work with assigned patients. */
 export const clinicalRoles = ["doctor", "nurse", "psychologist", "secretary"] as const;
+/** Roles that work in a doctor's team. */
+export const teamRoles: readonly string[] = ["nurse", "psychologist", "secretary"];
 export type StaffRole = keyof typeof roleNames;
 export type PortalSession = {
   staff: boolean;

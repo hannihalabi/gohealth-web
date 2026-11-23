@@ -47,4 +47,18 @@ select public.clinician_administration('member', jsonb_build_object('organizatio
 reset role;
 select pg_temp.r_assert((select role = 'psychologist' from clinical_private.staff where user_id = 'f1000000-0000-4000-8000-000000000004'), 'a member can be changed to psychologist');
 select pg_temp.r_assert((select role = 'secretary' from clinical_private.staff_invitations where email = 'roles-6@example.invalid'), 'a secretary can be invited');
-select 'Role tests passed: psychologist and medical secretary roles, assignment-based access, no publishing, invitations and edits.' as result;
+-- Teams: every non-doctor role can work under a doctor; the link follows role changes.
+set local role authenticated;
+select pg_temp.r_claims(1);
+select public.clinician_set_care_team('f3000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000003','f1000000-0000-4000-8000-000000000002',0);
+select public.clinician_set_care_team('f3000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000004','f1000000-0000-4000-8000-000000000002',0);
+select pg_temp.r_assert((select count(*) = 2 from jsonb_array_elements(public.clinician_system_overview('f3000000-0000-4000-8000-000000000001')->'members') m
+  where m->>'doctor_id' = 'f1000000-0000-4000-8000-000000000002'), 'psychologists and secretaries are shown under their doctor');
+select pg_temp.r_fail($q$select public.clinician_set_care_team('f3000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000002','f1000000-0000-4000-8000-000000000002',0)$q$, 'a doctor is not a team member');
+reset role;
+update clinical_private.staff set role = 'secretary', revision = revision + 1 where user_id = 'f1000000-0000-4000-8000-000000000004';
+select pg_temp.r_assert((select doctor_id = 'f1000000-0000-4000-8000-000000000002' from clinical_private.care_teams where nurse_id = 'f1000000-0000-4000-8000-000000000004'), 'moving between team roles keeps the team');
+update clinical_private.staff set role = 'doctor', revision = revision + 1 where user_id = 'f1000000-0000-4000-8000-000000000003';
+select pg_temp.r_assert((select doctor_id is null from clinical_private.care_teams where nurse_id = 'f1000000-0000-4000-8000-000000000003'), 'becoming a doctor leaves the team');
+select pg_temp.r_assert(clinical_private.care_organization('f1000000-0000-4000-8000-000000000004','f4000000-0000-4000-8000-000000000001') is null, 'team membership grants no patient access');
+select 'Role tests passed: psychologist and medical secretary roles, assignment-based access, no publishing, invitations, edits and doctor teams.' as result;

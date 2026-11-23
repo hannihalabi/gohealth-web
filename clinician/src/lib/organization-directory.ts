@@ -60,13 +60,12 @@ export async function readOrganizationDirectory(
 export function groupCareTeams(members: Member[]) {
   const ordered = (items: Member[]) => [...items].sort((a, b) => Number(b.active) - Number(a.active) || a.display_name.localeCompare(b.display_name, "sv"));
   const doctors = ordered(members.filter((m) => m.role === "doctor"));
-  const nurses = ordered(members.filter((m) => m.role === "nurse"));
+  // Nurses, psychologists and medical secretaries all work in a doctor's team.
+  const team = ordered(members.filter((m) => m.role === "nurse" || m.role === "psychologist" || m.role === "secretary"));
   const validDoctorIds = new Set(doctors.filter((m) => m.active).map((m) => m.user_id));
   return {
     administrators: ordered(members.filter((m) => m.role === "admin")),
-    teams: doctors.map((doctor) => ({ doctor, nurses: nurses.filter((n) => n.active && doctor.active && n.doctor_id === doctor.user_id) })),
-    unassigned: nurses.filter((n) => !n.active || !n.doctor_id || !validDoctorIds.has(n.doctor_id)),
-    /** Psychologists and medical secretaries: clinical staff outside the doctor–nurse care teams. */
-    others: ordered(members.filter((m) => m.role === "psychologist" || m.role === "secretary")),
+    teams: doctors.map((doctor) => ({ doctor, nurses: team.filter((n) => n.active && doctor.active && n.doctor_id === doctor.user_id) })),
+    unassigned: team.filter((n) => !n.active || !n.doctor_id || !validDoctorIds.has(n.doctor_id)),
   };
 }

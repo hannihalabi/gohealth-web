@@ -101,7 +101,7 @@ function PersonCard({ member, disabled, currentUserId, onMember, onTeam }: {
       onClick={() => onMember(member)} title={member.email} aria-label={`Hantera ${member.display_name}`}>
       <span className="team-map-avatar">{member.display_name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("")}</span>
       <span className="team-person-name"><strong>{member.display_name}</strong>
-        {(member.role === "psychologist" || member.role === "secretary") && <RoleBadge role={member.role} small />}
+        {member.role !== "doctor" && member.role !== "admin" && <RoleBadge role={member.role} small />}
         {!member.active && <small>Inaktiv</small>}
       </span>
       {member.active && <span className="team-person-active" role="img" aria-label="Aktiv" />}
@@ -109,7 +109,7 @@ function PersonCard({ member, disabled, currentUserId, onMember, onTeam }: {
     {clinical && <div className="team-patient-count" title="Aktiva patienttilldelningar" aria-label={`${count ?? "Okänt antal"} patienter`}>
       <strong>{typeof count === "number" ? count : "—"}</strong><span>{count === 1 ? "patient" : "patienter"}</span>
     </div>}
-    {member.role === "nurse" && member.active && <button type="button" className="team-link-button"
+    {(member.role === "nurse" || member.role === "psychologist" || member.role === "secretary") && member.active && <button type="button" className="team-link-button"
       disabled={disabled} onClick={() => onTeam(member)} aria-label={`Välj läkare för ${member.display_name}`}
       title="Välj läkare"><Network size={16}/></button>}
   </div>;
@@ -122,7 +122,7 @@ export function OrganizationChartView({ organizationName, directory, busy, error
   onMember: (member: Member) => void; onTeam: (member: Member) => void;
 }) {
   const members = directory?.members ?? [];
-  const { administrators, teams, unassigned, others } = groupCareTeams(members);
+  const { administrators, teams, unassigned } = groupCareTeams(members);
   const people = new Set(members.filter((m) => m.active).map((m) => m.user_id)).size;
   const locked = editing || busy || !!error;
   const limit = (key: string) => visible[key] ?? 3;
@@ -147,7 +147,7 @@ export function OrganizationChartView({ organizationName, directory, busy, error
           <div className="team-map-role"><Stethoscope size={19}/><h3>Läkare</h3><span>{teams.length}</span></div>
           {teams.length ? <ul className="team-map-people">{teams.slice(0, limit("doctor")).map(({ doctor, nurses }) => <li key={doctor.user_id} className="team-doctor-team">
             {card(doctor)}
-            <div className="team-nurses"><div className="team-nurses-label"><HeartPulse size={15}/><h4>Sjuksköterskor</h4><span>{nurses.length}</span></div>
+            <div className="team-nurses"><div className="team-nurses-label"><HeartPulse size={15}/><h4>Team</h4><span>{nurses.length}</span></div>
               {!!nurses.length && <ul>{nurses.slice(0, limit(`nurses:${doctor.user_id}`)).map((nurse) => <li key={nurse.user_id}>{card(nurse)}</li>)}</ul>}
               {more(`nurses:${doctor.user_id}`, nurses.length)}
             </div>
@@ -158,11 +158,6 @@ export function OrganizationChartView({ organizationName, directory, busy, error
             {more("unassigned", unassigned.length)}
           </div>}
         </section>
-        {!!others.length && <section className="team-map-branch" aria-label="Övrig vårdpersonal">
-          <div className="team-map-role"><Users size={19}/><h3>Övrig vårdpersonal</h3><span>{others.length}</span></div>
-          <ul className="team-map-people">{others.slice(0, limit("others")).map((member) => <li key={member.user_id}>{card(member)}</li>)}</ul>
-          {more("others", others.length)}
-        </section>}
       </div>
     </div>}
   </section>;
