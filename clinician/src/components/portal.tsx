@@ -1,5 +1,7 @@
 "use client";
 import { VitalsWorkspace } from "@/components/vitals-workspace";
+import { ClinicianHome } from "@/components/clinician-home";
+import { ConsultDialog } from "@/components/consult-dialog";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Activity,
@@ -20,6 +22,7 @@ import {
   Lock,
   LockKeyhole,
   LogOut,
+  MessagesSquare,
   Plus,
   Search,
   ShieldCheck,
@@ -45,7 +48,7 @@ import {
   vitalKinds,
   vitalPageSize,
 } from "@/lib/model";
-import { demoDetail, demoOtherPatients, demoPatients, demoPublish } from "@/lib/demo";
+import { demoDetail, demoHome, demoOtherPatients, demoPatients, demoPublish } from "@/lib/demo";
 import { AdministrationWorkspace } from "@/components/administration";
 import { PresetField } from "@/components/preset-field";
 import { ImagingWorkspace } from "@/components/imaging-workspace";
@@ -140,7 +143,8 @@ export function Portal({
       correction?: boolean;
     } | null>(null),
     [publishing, setPublishing] = useState<ClinicalRecord | null>(null);
-  const [view, setView] = useState<"patients" | "all" | "attest">("patients"),
+  const [view, setView] = useState<"home" | "patients" | "all" | "attest">("home"),
+    [consulting, setConsulting] = useState(false),
     [allPatients, setAllPatients] = useState<Patient[] | null>(null),
     [attest, setAttest] = useState<PendingItem[] | null>(null),
     [attestError, setAttestError] = useState(""),
@@ -540,6 +544,8 @@ export function Portal({
       />
     );
   const rows = view === "all" ? (allPatients ?? []) : patients;
+  // Doctors open every patient in the clinic; nurses need an assignment.
+  const locked = (p: Patient) => (p.can_open === undefined ? p.assigned_to_me === false : !p.can_open);
   const closeDetail = () => {
     requestId.current++;
     setDetail(null);
@@ -611,6 +617,17 @@ export function Portal({
       </header>
       <aside className="sidebar admin-rail">
         <nav id="clinical-navigation" aria-label="Vårdportalens meny">
+          <button
+            className={"nav-item" + (view === "home" ? " selected" : "")}
+            aria-label="Översikt"
+            onClick={() => {
+              setView("home");
+              closeDetail();
+            }}
+          >
+            <LayoutDashboard size={17} />
+            <span className="nav-label">Översikt</span>
+          </button>
           <button
             className={"nav-item" + (view === "patients" ? " selected" : "")}
             aria-label={`Mina patienter (${patients.length})`}
@@ -694,8 +711,8 @@ export function Portal({
                   className={!detail ? "active" : ""}
                   onClick={closeDetail}
                 >
-                  {view === "attest" ? <ClipboardCheck size={15} /> : view === "all" ? <UsersRound size={15} /> : <Users size={15} />}
-                  {view === "attest" ? "Attestering" : view === "all" ? "Alla patienter" : "Mina patienter"}
+                  {view === "home" ? <LayoutDashboard size={15} /> : view === "attest" ? <ClipboardCheck size={15} /> : view === "all" ? <UsersRound size={15} /> : <Users size={15} />}
+                  {view === "home" ? "Översikt" : view === "attest" ? "Attestering" : view === "all" ? "Alla patienter" : "Mina patienter"}
                 </button>
                 {detail && (
                   <span role="tab" aria-selected className="active wb-patient-tab">
@@ -707,7 +724,22 @@ export function Portal({
                   </span>
                 )}
               </div>
-          {!detail && view === "attest" ? (
+          {!detail && view === "home" ? (
+            <ClinicianHome
+              demo={demo}
+              name={session.name}
+              demoData={demoHome()}
+              onOpenPatient={(p) => {
+                const known = [...demoPatients, ...demoOtherPatients, ...patients, ...(allPatients ?? [])].find((x) => x.id === p.id);
+                void open(known ?? { id: p.id, display_name: p.display_name, identity_label: "", identity_verified: true, last_sync_at: null });
+              }}
+              onAttest={() => {
+                setView("attest");
+                void loadAttest();
+              }}
+              onMyPatients={() => setView("patients")}
+            />
+          ) : !detail && view === "attest" ? (
             <AttestationGrid
               items={attest}
               loading={attestLoading}
@@ -762,9 +794,9 @@ export function Portal({
                   </thead>
                   <tbody>
                     {rows.map((p) => (
-                      <tr key={p.id} className={p.assigned_to_me === false ? "is-locked" : ""} title={p.assigned_to_me === false ? "Du har ingen behandlingsrelation till patienten" : undefined} onClick={() => p.assigned_to_me !== false && open(p)}>
+                      <tr key={p.id} className={locked(p) ? "is-locked" : ""} title={locked(p) ? "Patienten behöver vara tilldelad dig för att journalen ska kunna öppnas" : undefined} onClick={() => !locked(p) && open(p)}>
                         <td>
-                          <button className="patient-link" disabled={p.assigned_to_me === false} onClick={(e) => { e.stopPropagation(); void open(p); }}>
+                          <button className="patient-link" disabled={locked(p)} onClick={(e) => { e.stopPropagation(); void open(p); }}>
                             <span className="patient-avatar">{initialsOf(p.display_name)}</span>
                             <strong>{p.display_name}</strong>
                           </button>
@@ -784,8 +816,8 @@ export function Portal({
                           )}
                         </td>
                         <td className="grid-open">
-                          {p.assigned_to_me === false ? (
-                            <Lock size={15} aria-label="Ingen behandlingsrelation" />
+                          {locked(p) ? (
+                            <Lock size={15} aria-label="Kräver tilldelning" />
                           ) : (
                             <ArrowRight size={16} aria-label={`Öppna ${p.display_name}`} />
                           )}
@@ -865,6 +897,12 @@ export function Portal({
               </div>
               {tab === "overview" ? (
                 <>
+                  <div className="overview-actions">
+                    <button className="button secondary" onClick={() => setConsulting(true)}>
+                      <MessagesSquare size={16} />
+                      Konsultera med en kollega
+                    </button>
+                  </div>
                   <div className="stats">
                     <Stat
                       label="Publicerade svar"
@@ -1108,6 +1146,18 @@ export function Portal({
           )}
         </main>
       </div>
+      {consulting && detail && (
+        <ConsultDialog
+          patient={detail.patient}
+          records={detail.records}
+          demo={demo}
+          onClose={() => setConsulting(false)}
+          onSent={(colleague) => {
+            setConsulting(false);
+            setNotice(`Konsultationen har skickats till ${colleague}.`);
+          }}
+        />
+      )}
       {editor && detail && (
         <Editor
           key={editor.record?.id || editor.kind}

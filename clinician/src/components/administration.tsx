@@ -15,6 +15,7 @@ import {
   Heart,
   History,
   LayoutDashboard,
+  Megaphone,
   UserPlus,
   Network,
   LogOut,
@@ -38,6 +39,7 @@ import {
 } from "@/lib/administration";
 import { normalizeSearch } from "@/lib/model";
 import { PatientsOverview } from "@/components/patients-overview";
+import { AnnouncementsPanel } from "@/components/announcements-panel";
 import { SystemOverview } from "@/components/overview/system-overview";
 import { OrganizationChart } from "@/components/overview/organization-chart";
 import "./shell.css";
@@ -162,7 +164,7 @@ export function AdministrationWorkspace({
 }) {
   const organizations = session.organizations ?? [],
     [organizationId, setOrganizationId] = useState(organizations[0]?.id ?? ""),
-    [tab, setTab] = useState<"overview" | "newpatients" | "system" | "staff" | "patients" | "history">("overview"),
+    [tab, setTab] = useState<"overview" | "newpatients" | "messages" | "system" | "staff" | "patients" | "history">("overview"),
     [data, setData] = useState<AdministrationData | null>(null),
     [query, setQuery] = useState(""),
     [showAll, setShowAll] = useState(false),
@@ -460,6 +462,7 @@ export function AdministrationWorkspace({
             [
               ["overview", "Översikt", LayoutDashboard],
               ["newpatients", "Nya registreringar", UserPlus],
+              ["messages", "Meddelanden", Megaphone],
               ["system", "System", Network],
               ["staff", "Personal", Users],
               ["patients", "Sök patient", Search],
@@ -509,7 +512,7 @@ export function AdministrationWorkspace({
               {notice}
             </div>
           )}
-          {tab === "newpatients" ? <PatientsOverview key={organizationId} organizationId={organizationId} demo={demo} registeredFallback={data?.patients.filter((p) => p.active).length ?? 0} /> : tab === "overview" ? <Dashboard data={data} busy={busy} onTab={setTab} /> : tab === "system" ? <SystemOverview
+          {tab === "messages" ? <AnnouncementsPanel key={organizationId} organizationId={organizationId} demo={demo} /> : tab === "newpatients" ? <PatientsOverview key={organizationId} organizationId={organizationId} demo={demo} registeredFallback={data?.patients.filter((p) => p.active).length ?? 0} /> : tab === "overview" ? <Dashboard data={data} busy={busy} onTab={setTab} /> : tab === "system" ? <SystemOverview
             key={organizationId}
             organizationId={organizationId}
             demo={demo}

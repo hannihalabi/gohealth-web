@@ -123,6 +123,8 @@ export type Patient = {
   doctors?: string[];
   /** False when the patient is visible in the clinic directory but the signed-in clinician has no care relation. */
   assigned_to_me?: boolean;
+  /** False when the signed-in clinician may not open the journal (nurses without assignment). Doctors open every patient in the clinic. */
+  can_open?: boolean;
 };
 export type Vital = {
   id: string;

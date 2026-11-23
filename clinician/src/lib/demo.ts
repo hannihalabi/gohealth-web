@@ -1,4 +1,5 @@
 import type { ClinicalRecord, Patient, PatientDetail } from "./model";
+import type { HomeData } from "./clinician-home";
 export const demoPatients: Patient[] = [
   {
     id: "00000000-0000-4000-8000-000000000001",
@@ -8,6 +9,7 @@ export const demoPatients: Patient[] = [
     last_sync_at: "2026-11-17T08:20:00Z",
     doctors: ["Amir · testläkare"],
     assigned_to_me: true,
+    can_open: true,
   },
   {
     id: "00000000-0000-4000-8000-000000000002",
@@ -17,6 +19,7 @@ export const demoPatients: Patient[] = [
     last_sync_at: null,
     doctors: ["Amir · testläkare"],
     assigned_to_me: true,
+    can_open: true,
   },
   {
     id: "00000000-0000-4000-8000-000000000003",
@@ -26,6 +29,7 @@ export const demoPatients: Patient[] = [
     last_sync_at: null,
     doctors: [],
     assigned_to_me: true,
+    can_open: true,
   },
 ];
 /** Directory-only patient: visible to the whole clinic, but not assigned to the signed-in clinician. */
@@ -38,6 +42,7 @@ export const demoOtherPatients: Patient[] = [
     last_sync_at: "2026-11-16T14:05:00Z",
     doctors: ["Dr. Berg"],
     assigned_to_me: false,
+    can_open: true,
   },
 ];
 export function demoDetail(patient: Patient): PatientDetail {
@@ -197,4 +202,22 @@ export function demoPublish(
         ? { ...x, superseded_at: now }
         : x,
   );
+}
+
+/** Synthetic start page for the demonstration environment. */
+export function demoHome(): HomeData {
+  return {
+    counts: { assigned: demoPatients.length, clinic: demoPatients.length + demoOtherPatients.length, unsigned: 1, consultations: 1 },
+    unsigned: [{ id: "demo-unsigned-1", patient_id: demoPatients[0].id, display_name: demoPatients[0].display_name, kind: "lab", title: "Uppföljande sköldkörtelprov", created_at: "2026-11-17T09:00:00Z" }],
+    announcements: [{ id: "demo-announcement-1", title: "Influensavaccination", body: "Säsongens vaccination startar på måndag. Prioritera patienter i riskgrupp.", created_at: "2026-11-16T08:00:00Z", author: "Administratör" }],
+    consultations: [{
+      id: "demo-consultation-1", patient_id: demoOtherPatients[0].id, display_name: demoOtherPatients[0].display_name, direction: "in", status: "open",
+      message: "Kan du titta på vilopulsen? Den har stigit den senaste veckan.", reply: null, created_at: "2026-11-17T07:30:00Z", replied_at: null,
+      from_name: "Dr. Berg", to_name: null, record: null,
+    }],
+    deviations: [
+      { patient_id: demoPatients[0].id, display_name: demoPatients[0].display_name, rule: "resting-heart-rate", severity: "warn", title: "Stigande vilopuls", detail: "71 slag/min senaste 7 dagarna mot 62 slag/min tidigare", at: "2026-11-17" },
+      { patient_id: demoPatients[1].id, display_name: demoPatients[1].display_name, rule: "sync", severity: "info", title: "Ingen datasynk", detail: "Senaste synk för 21 dagar sedan", at: "2026-10-27" },
+    ],
+  };
 }

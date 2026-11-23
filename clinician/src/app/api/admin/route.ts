@@ -4,6 +4,17 @@ import { overviewRequest } from "@/lib/overview";
 import { pipelineDecision, pipelineRequest } from "@/lib/pipeline";
 import { databaseHealthRequest } from "@/lib/database-health";
 import { authorized, ApiError, failure, json, requestBody } from "@/lib/server";
+import { z } from "zod";
+
+const announcementRequest = z.object({
+  action: z.literal("announcements"),
+  organizationId: z.uuid(),
+  op: z.enum(["list", "post", "archive"]).default("list"),
+  title: z.string().trim().min(1).max(120).optional(),
+  body: z.string().trim().min(1).max(2000).optional(),
+  expiresAt: z.iso.datetime({ offset: true }).nullable().optional(),
+  id: z.uuid().optional(),
+}).strict();
 export async function POST(request: Request) {
   try {
     const input = await requestBody(request);
@@ -16,7 +27,9 @@ export async function POST(request: Request) {
             ? pipelineDecision.parse(input)
             : input?.action === "database"
               ? databaseHealthRequest.parse(input)
-              : administrationCommand.parse(input);
+              : input?.action === "announcements"
+                ? announcementRequest.parse(input)
+                : administrationCommand.parse(input);
     const { db, session } = await authorized();
     if (!session.admin || !portalSessionReady(session))
       throw new ApiError(403, "Logga in med ditt administratörskonto för att fortsätta.");
@@ -37,6 +50,15 @@ export async function POST(request: Request) {
         ...(result.data as object),
         ...(project ? { dashboardUrl: `https://supabase.com/dashboard/project/${project}` } : {}),
       });
+    }
+    if (body.action === "announcements") {
+      const result = await db.rpc("clinician_announcements", {
+        p_organization_id: body.organizationId,
+        p_action: body.op,
+        p_args: { title: body.title, body: body.body, expires_at: body.expiresAt ?? null, id: body.id },
+      });
+      if (result.error) throw result.error;
+      return json(result.data);
     }
     if (body.action === "pipeline") {
       const result = await db.rpc("clinician_patient_pipeline", {

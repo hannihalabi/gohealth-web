@@ -13,6 +13,17 @@ const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("directory"), query: z.string().max(120) }).strict(),
   z.object({ action: z.literal("patient"), patientId: z.uuid() }).strict(),
   z.object({ action: z.literal("attestations") }).strict(),
+  z.object({ action: z.literal("overview") }).strict(),
+  z.object({
+    action: z.literal("consultation"),
+    op: z.enum(["colleagues", "send", "reply", "close"]),
+    patientId: z.uuid().optional(),
+    to: z.uuid().optional(),
+    recordId: z.uuid().nullable().optional(),
+    message: z.string().trim().min(1).max(2000).optional(),
+    id: z.uuid().optional(),
+    reply: z.string().trim().min(1).max(2000).optional(),
+  }).strict(),
   z.object({
     action: z.literal("vital_history"),
     patientId: z.uuid(),
@@ -78,6 +89,15 @@ export async function POST(request: Request) {
         break;
       case "attestations":
         result = await db.rpc("clinician_pending_attestations");
+        break;
+      case "overview":
+        result = await db.rpc("clinician_overview");
+        break;
+      case "consultation":
+        result = await db.rpc("clinician_consultation", {
+          p_action: body.op,
+          p_args: { patient: body.patientId, to: body.to, record: body.recordId ?? null, message: body.message, id: body.id, reply: body.reply },
+        });
         break;
       case "patient":
         result = await db.rpc("clinician_patient", {
