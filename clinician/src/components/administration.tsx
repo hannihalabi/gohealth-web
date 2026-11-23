@@ -18,7 +18,6 @@ import {
   Megaphone,
   UserPlus,
   Network,
-  LogOut,
   Plus,
   Search,
   ShieldCheck,
@@ -42,6 +41,7 @@ import {
 import { normalizeSearch } from "@/lib/model";
 import { PatientsOverview } from "@/components/patients-overview";
 import { RoleBadge } from "@/components/role-badge";
+import { ActivityLog } from "@/components/activity-log";
 import { AnnouncementsPanel } from "@/components/announcements-panel";
 import { SystemOverview } from "@/components/overview/system-overview";
 import { OrganizationChart } from "@/components/overview/organization-chart";
@@ -101,30 +101,6 @@ function demoData(): AdministrationData {
     ],
   };
 }
-const auditNames: Record<string, string> = {
-  "administration.open": "Administration öppnad",
-  "administration.invite": "Personal tillagd för aktivering",
-  "administration.cancelInvitation": "Väntande behörighet återkallad",
-  "administration.member": "Personalbehörighet uppdaterad",
-  "administration.patient": "Patientkonto kopplat till mottagningen",
-  "administration.assignment": "Patienttilldelning uppdaterad",
-  "administration.careTeam": "Teamkoppling uppdaterad",
-  "invitation.accept": "Personalbehörighet aktiverad",
-  "administration.signupapprove": "Patientregistrering godkänd",
-  "administration.signupreject": "Patientregistrering avslagen",
-  "administration.applicationhandled": "Ansökan hanterad",
-  "administration.applicationdismissed": "Ansökan avfärdad",
-};
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase())
-      .join("") || "A"
-  );
-}
 class AdministrationError extends Error {
   constructor(
     public status: number,
@@ -157,7 +133,6 @@ type Editor =
 export function AdministrationWorkspace({
   demo,
   session,
-  onLogout,
   links,
 }: {
   demo: boolean;
@@ -184,19 +159,8 @@ export function AdministrationWorkspace({
         searchRef.current?.select();
       }
     };
-    const close = (e: Event) => {
-      const menu = document.querySelector<HTMLDetailsElement>(".admin-user");
-      if (menu?.open && (e.type === "keydown" || !menu.contains(e.target as Node)))
-        if (e.type !== "keydown" || (e as KeyboardEvent).key === "Escape") menu.open = false;
-    };
     window.addEventListener("keydown", onKey);
-    window.addEventListener("keydown", close);
-    window.addEventListener("click", close);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("keydown", close);
-      window.removeEventListener("click", close);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
   const cache = useRef(demoData()),
     epoch = useRef(0),
@@ -439,25 +403,17 @@ export function AdministrationWorkspace({
           />
           <kbd>⌘K</kbd>
         </form>
-        <details className="admin-user">
-          <summary aria-label="Konto">
-            <span className="admin-avatar">{initials(adminName)}</span>
-          </summary>
-          <div className="admin-menu">
-            <strong>{adminName}</strong>
-            <small>Administratör</small>
-            {session.clinical !== false && (
-              <a href={demo ? "/demo" : links.clinical}>
-                <ArrowLeft size={16} />
-                Till vårdportalen
-              </a>
-            )}
-            <button onClick={() => void onLogout()}>
-              <LogOut size={16} />
-              Logga ut
-            </button>
-          </div>
-        </details>
+        <div className="topbar-user">
+          <span className="topbar-user-label">Inloggad som:</span>
+          <strong>{adminName}</strong>
+          <RoleBadge role="admin" />
+          {session.clinical !== false && (
+            <a className="topbar-user-admin" href={demo ? "/demo" : links.clinical}>
+              <ArrowLeft size={15} />
+              Vårdportalen
+            </a>
+          )}
+        </div>
       </header>
       <aside className="sidebar admin-rail">
         <nav>
@@ -789,30 +745,7 @@ export function AdministrationWorkspace({
             </section>
           )}
           {data && tab === "history" && (
-            <section className="panel">
-              {data.audit.map((a, i) => (
-                <div className="history-row" key={i}>
-                  <CheckCircle2 size={17} />
-                  <strong>
-                    {auditNames[a.action] ?? "Administrationsåtgärd"}
-                    <small className="admin-secondary">
-                      {data.members.find((m) => m.user_id === a.actor_id)
-                        ?.display_name ??
-                        (demo
-                          ? "Testadministratör"
-                          : "System / tidigare personal")}
-                      {a.details?.role ? " · " + roleNames[a.details.role] : ""}
-                      {typeof a.details?.active === "boolean"
-                        ? a.details.active
-                          ? " · Aktiv"
-                          : " · Inaktiv"
-                        : ""}
-                    </small>
-                  </strong>
-                  <span>{new Date(a.created_at).toLocaleString("sv-SE")}</span>
-                </div>
-              ))}
-            </section>
+            <ActivityLog key={organizationId} organizationId={organizationId} demo={demo} members={data.members} />
           )}
         </main>
       </div>
@@ -1328,28 +1261,6 @@ function Dashboard({
           )}
         </section>
       </div>
-      <section className="panel dashboard-card">
-        <h2>
-          Senaste händelser
-          <button onClick={() => onTab("history")}>
-            Visa alla <ArrowRight size={14} />
-          </button>
-        </h2>
-        <ul className="dashboard-events">
-          {data.audit.slice(0, 6).map((a, i) => (
-            <li key={i}>
-              <span>{auditNames[a.action] ?? "Administrationsåtgärd"}</span>
-              <time>
-                {new Date(a.created_at).toLocaleString("sv-SE", {
-                  timeZone: "Europe/Stockholm",
-                  dateStyle: "short",
-                  timeStyle: "short",
-                })}
-              </time>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   );
 }

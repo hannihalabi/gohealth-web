@@ -101,7 +101,7 @@ function PersonCard({ member, disabled, currentUserId, onMember, onTeam }: {
       onClick={() => onMember(member)} title={member.email} aria-label={`Hantera ${member.display_name}`}>
       <span className="team-map-avatar">{member.display_name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("")}</span>
       <span className="team-person-name"><strong>{member.display_name}</strong>
-        {member.role !== "doctor" && member.role !== "admin" && <RoleBadge role={member.role} small />}
+        <RoleBadge role={member.role} small />
         {!member.active && <small>Inaktiv</small>}
       </span>
       {member.active && <span className="team-person-active" role="img" aria-label="Aktiv" />}

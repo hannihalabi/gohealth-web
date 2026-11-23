@@ -6,6 +6,17 @@ import { databaseHealthRequest } from "@/lib/database-health";
 import { authorized, ApiError, failure, json, requestBody } from "@/lib/server";
 import { z } from "zod";
 
+const activityRequest = z.object({
+  action: z.literal("activity"),
+  organizationId: z.uuid(),
+  mode: z.enum(["accounts", "events"]),
+  account: z.uuid().nullable().optional(),
+  category: z.enum(["all", "journal", "admin", "login"]).optional(),
+  days: z.number().int().min(1).max(366).optional(),
+  routine: z.boolean().optional(),
+  before: z.iso.datetime({ offset: true }).optional(),
+  before_id: z.string().min(1).max(80).optional(),
+}).strict();
 const announcementRequest = z.object({
   action: z.literal("announcements"),
   organizationId: z.uuid(),
@@ -29,7 +40,9 @@ export async function POST(request: Request) {
               ? databaseHealthRequest.parse(input)
               : input?.action === "announcements"
                 ? announcementRequest.parse(input)
-                : administrationCommand.parse(input);
+                : input?.action === "activity"
+                  ? activityRequest.parse(input)
+                  : administrationCommand.parse(input);
     const { db, session } = await authorized();
     if (!session.admin || !portalSessionReady(session))
       throw new ApiError(403, "Logga in med ditt administratörskonto för att fortsätta.");
@@ -50,6 +63,12 @@ export async function POST(request: Request) {
         ...(result.data as object),
         ...(project ? { dashboardUrl: `https://supabase.com/dashboard/project/${project}` } : {}),
       });
+    }
+    if (body.action === "activity") {
+      const { action: _a, organizationId, mode, ...args } = body;
+      const result = await db.rpc("clinician_activity_log", { p_organization_id: organizationId, p_mode: mode, p_args: args });
+      if (result.error) throw result.error;
+      return json(result.data);
     }
     if (body.action === "announcements") {
       const result = await db.rpc("clinician_announcements", {

@@ -6,8 +6,8 @@ try {
     create role anon; create role authenticated;
     grant usage on schema public to authenticated;
     create schema auth;
-    create table auth.users(id uuid primary key,banned_until timestamptz,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');
-    create table auth.sessions(id uuid primary key,user_id uuid references auth.users,not_after timestamptz);
+    create table auth.users(id uuid primary key,banned_until timestamptz,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}',last_sign_in_at timestamptz);
+    create table auth.sessions(id uuid primary key,user_id uuid references auth.users,not_after timestamptz,created_at timestamptz default now(),user_agent text,ip inet);
     create function auth.jwt() returns jsonb language sql as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
     create function auth.uid() returns uuid language sql as $$select (auth.jwt()->>'sub')::uuid$$;
     grant usage on schema auth to authenticated;
@@ -107,7 +107,8 @@ try {
   await db.exec(await readFile(new URL("../../supabase/migrations/20261123140000_message_inbox.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../../supabase/migrations/20261123150000_more_roles.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../../supabase/migrations/20261123160000_care_teams_all_roles.sql", import.meta.url), "utf8"));
-  for (const suite of ["clinician_core.sql","clinician_administration.sql","clinician_portal_password_beta.sql","clinician_ct_archives.sql","administration_overview.sql","health_history.sql","care_teams.sql","patient_pipeline.sql","record_annulment.sql","database_health.sql","health_trend.sql","patient_directory.sql","automatic_health_sync.sql","health_summary.sql","health_daily.sql","clinician_overview.sql","patient_messages.sql","more_roles.sql"]) {
+  await db.exec(await readFile(new URL("../../supabase/migrations/20261123170000_activity_log.sql", import.meta.url), "utf8"));
+  for (const suite of ["clinician_core.sql","clinician_administration.sql","clinician_portal_password_beta.sql","clinician_ct_archives.sql","administration_overview.sql","health_history.sql","care_teams.sql","patient_pipeline.sql","record_annulment.sql","database_health.sql","health_trend.sql","patient_directory.sql","automatic_health_sync.sql","health_summary.sql","health_daily.sql","clinician_overview.sql","patient_messages.sql","more_roles.sql","activity_log.sql"]) {
     await db.exec("begin");
     const results = await db.exec(
       await readFile(
