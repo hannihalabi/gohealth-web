@@ -41,3 +41,8 @@ select.admin-org { padding: 6px 8px; border-radius: 8px; border: 1px solid var(-
   .admin-search kbd, .admin-pill, .admin-crumb-sep { display: none; }
 }
 
+/* Signed-in clinician next to the search field. */
+.topbar-user { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; min-width: 0; }
+.topbar-user strong { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.topbar-user-admin { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; color: var(--plum); font-weight: 600; text-decoration: none; align-self: center; }
+@media (max-width: 760px) { .topbar-user-label, .topbar-user-admin { display: none; } }

@@ -24,7 +24,6 @@ import {
   LayoutDashboard,
   Lock,
   LockKeyhole,
-  LogOut,
   MessageSquareText,
   MessagesSquare,
   Plus,
@@ -623,25 +622,18 @@ export function Portal({
           />
           <kbd>⌘K</kbd>
         </form>
-        <details className="admin-user">
-          <summary aria-label="Konto">
-            <span className="admin-avatar">{initialsOf(session.name)}</span>
-          </summary>
-          <div className="admin-menu">
-            <strong>{session.name}</strong>
-            <small>{session.role === "doctor" ? "Läkare" : "Vårdpersonal"}</small>
-            {session.admin && (
-              <a href={demo ? "/demo/admin" : links.administration}>
-                <ShieldCheck size={16} />
-                Administration
-              </a>
-            )}
-            <button onClick={logout}>
-              <LogOut size={16} />
-              Logga ut
-            </button>
-          </div>
-        </details>
+        <div className="topbar-user">
+          <span className="topbar-user-label">Inloggad som:</span>
+          <strong>
+            {session.name} ({session.role === "doctor" ? "Läkare" : session.role === "nurse" ? "Sjuksköterska" : "Vårdpersonal"})
+          </strong>
+          {session.admin && (
+            <a className="topbar-user-admin" href={demo ? "/demo/admin" : links.administration}>
+              <ShieldCheck size={15} />
+              Administration
+            </a>
+          )}
+        </div>
       </header>
       <aside className="sidebar admin-rail">
         <nav id="clinical-navigation" aria-label="Vårdportalens meny">
