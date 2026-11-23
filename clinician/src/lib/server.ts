@@ -100,6 +100,17 @@ export function json(value: unknown, status = 200) {
     },
   });
 }
+// Database refusals that the user can act on, in Swedish.
+const knownMessages: Record<string, string> = {
+  "No free times": "Du har inga lediga tider. Lägg in tider under Kalender först.",
+  "Time booked": "Tiden är bokad. Avboka den i patientens chatt innan du tar bort den.",
+  "Time unavailable": "Tiden finns inte längre.",
+  "Booking unavailable": "Bokningen finns inte längre.",
+  "Invalid time block": "Kontrollera tiderna. Blocket ska ligga framåt i tiden och ge högst 96 tider.",
+  "Nothing to archive": "Chatten är redan stängd.",
+  "Too many quick replies": "Du kan spara högst 50 egna snabbsvar.",
+  "Patient app account required": "Patienten har inget verifierat appkonto.",
+};
 export function failure(error: unknown) {
   if (error instanceof ApiError)
     return json({ error: error.message }, error.status);
@@ -131,6 +142,11 @@ export function failure(error: unknown) {
       },
       403,
     );
+  const known =
+    code === "22023" && error && typeof error === "object" && "message" in error
+      ? knownMessages[String(error.message)]
+      : undefined;
+  if (known) return json({ error: known }, 400);
   if (code === "22023" || code === "23514" || code === "22P02")
     return json(
       { error: "Uppgifterna kunde inte godkännas. Kontrollera formuläret." },

@@ -17,9 +17,28 @@ const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("inbox"), op: z.enum(["list", "poll"]) }).strict(),
   z.object({
     action: z.literal("messages"),
-    op: z.enum(["thread", "send", "resolve", "poll"]),
+    op: z.enum(["thread", "send", "resolve", "poll", "archive", "book", "unbook"]),
     patientId: z.uuid(),
     body: z.string().trim().min(1).max(4000).optional(),
+    visitType: z.enum(["video", "phone", "clinic"]).optional(),
+    bookingId: z.uuid().optional(),
+  }).strict(),
+  z.object({
+    action: z.literal("calendar"),
+    op: z.enum(["list", "add", "remove"]),
+    from: z.iso.date().optional(),
+    days: z.number().int().min(1).max(42).optional(),
+    date: z.iso.date().optional(),
+    start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+    end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+    minutes: z.number().int().min(5).max(240).optional(),
+    slotId: z.uuid().optional(),
+  }).strict(),
+  z.object({
+    action: z.literal("quick_replies"),
+    op: z.enum(["list", "add", "remove"]),
+    body: z.string().trim().min(1).max(1000).optional(),
+    id: z.uuid().optional(),
   }).strict(),
   z.object({
     action: z.literal("consultation"),
@@ -106,8 +125,20 @@ export async function POST(request: Request) {
       case "messages":
         result = await db.rpc("clinician_patient_messages", {
           p_action: body.op,
-          p_args: { patient: body.patientId, body: body.body },
+          p_args: { patient: body.patientId, body: body.body, visit_type: body.visitType, booking: body.bookingId },
         });
+        break;
+      case "calendar":
+        result = await db.rpc("clinician_calendar", {
+          p_action: body.op,
+          // In the database, "from"/"to" are the block's times for add and "from" is the first day for list.
+          p_args: body.op === "add" ? { date: body.date, from: body.start, to: body.end, minutes: body.minutes }
+            : body.op === "remove" ? { slot: body.slotId }
+            : { from: body.from, days: body.days },
+        });
+        break;
+      case "quick_replies":
+        result = await db.rpc("clinician_quick_replies", { p_action: body.op, p_args: { body: body.body, id: body.id } });
         break;
       case "consultation":
         result = await db.rpc("clinician_consultation", {

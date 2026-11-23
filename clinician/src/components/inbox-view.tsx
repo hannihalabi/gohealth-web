@@ -12,10 +12,13 @@ export type InboxConversation = {
   waiting: number;
   last_at: string;
   last_sender: "clinician" | "patient";
+  last_kind?: "text" | "booking" | "booked" | "unbooked";
   last_body: string;
+  archived?: boolean;
+  archived_at?: string | null;
 };
 type InboxData = { waiting: number; conversations: InboxConversation[] };
-type Filter = "waiting" | "mine" | "all";
+type Filter = "waiting" | "mine" | "all" | "archived";
 
 async function post(body: unknown) {
   const r = await fetch("/api/clinical", {
@@ -49,9 +52,10 @@ const demoInbox: InboxData = {
 };
 
 /** All patient conversations: the list on the left, the selected chat on the right. */
-export function InboxView({ demo, authorName, onOpenPatient, onWaiting }: {
+export function InboxView({ demo, authorName, onOpenPatient, onWaiting, onCalendar }: {
   demo: boolean;
   authorName: string;
+  onCalendar?: () => void;
   onOpenPatient: (patient: { id: string; display_name: string }) => void;
   onWaiting?: (count: number) => void;
 }) {
@@ -106,8 +110,11 @@ export function InboxView({ demo, authorName, onOpenPatient, onWaiting }: {
   }, [demo, load]);
 
   const all = data?.conversations ?? [];
-  const counts = { waiting: all.filter((c) => c.mine && c.waiting > 0).length, mine: all.filter((c) => c.mine).length, all: all.length };
-  const rows = all.filter((c) => (filter === "waiting" ? c.mine && c.waiting > 0 : filter === "mine" ? c.mine : true));
+  const active = all.filter((c) => !c.archived);
+  const counts = { waiting: active.filter((c) => c.mine && c.waiting > 0).length, mine: active.filter((c) => c.mine).length,
+    all: active.length, archived: all.length - active.length };
+  const rows = filter === "archived" ? all.filter((c) => c.archived)
+    : active.filter((c) => (filter === "waiting" ? c.mine && c.waiting > 0 : filter === "mine" ? c.mine : true));
   const current = all.find((c) => c.patient_id === selected) ?? null;
 
   useEffect(() => {
@@ -130,7 +137,7 @@ export function InboxView({ demo, authorName, onOpenPatient, onWaiting }: {
           )}
         </header>
         <div className="inbox-filters" role="tablist" aria-label="Filter">
-          {([["waiting", "Väntar på svar"], ["mine", "Mina"], ["all", "Hela kliniken"]] as const).map(([id, label]) => (
+          {([["waiting", "Väntar på svar"], ["mine", "Mina"], ["all", "Hela kliniken"], ["archived", "Arkiverade"]] as const).map(([id, label]) => (
             <button key={id} role="tab" aria-selected={filter === id} className={filter === id ? "active" : ""} onClick={() => setFilter(id)}>
               {label} <span>{counts[id]}</span>
             </button>
@@ -142,7 +149,7 @@ export function InboxView({ demo, authorName, onOpenPatient, onWaiting }: {
         ) : !rows.length ? (
           <div className="inbox-empty">
             <Inbox size={22} />
-            <p>{filter === "waiting" ? "Inget väntar på svar." : "Inga konversationer ännu. Skriv till en patient från patientens flik Meddelanden."}</p>
+            <p>{filter === "waiting" ? "Inget väntar på svar." : filter === "archived" ? "Inga stängda chattar." : "Inga konversationer ännu. Skriv till en patient från patientens flik Meddelanden."}</p>
           </div>
         ) : (
           <ul>
@@ -156,7 +163,7 @@ export function InboxView({ demo, authorName, onOpenPatient, onWaiting }: {
                       <strong>{c.display_name}</strong>
                       <small>{when(c.last_at)}</small>
                     </span>
-                    <span className="inbox-preview">{c.last_sender === "clinician" ? "Vårdteamet: " : ""}{c.last_body}</span>
+                    <span className="inbox-preview">{c.archived ? "Stängd · " : ""}{c.last_kind === "booking" ? "Bokningslänk: " : c.last_sender === "clinician" ? "Vårdteamet: " : ""}{c.last_body}</span>
                   </span>
                   {c.waiting > 0 && <span className="inbox-badge" aria-label={`${c.waiting} väntar på svar`}>{c.waiting}</span>}
                 </button>
@@ -179,7 +186,7 @@ export function InboxView({ demo, authorName, onOpenPatient, onWaiting }: {
               </button>
             </div>
             <PatientMessages key={current.patient_id} patientId={current.patient_id} patientName={current.display_name}
-              demo={demo} authorName={authorName} onChanged={() => void load(true)} />
+              demo={demo} authorName={authorName} onChanged={() => void load(true)} onCalendar={onCalendar} />
           </>
         ) : (
           <div className="inbox-placeholder">

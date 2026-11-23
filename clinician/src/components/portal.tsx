@@ -4,6 +4,7 @@ import { ClinicianHome } from "@/components/clinician-home";
 import { ConsultDialog } from "@/components/consult-dialog";
 import { PatientMessages } from "@/components/patient-messages";
 import { InboxView } from "@/components/inbox-view";
+import { CalendarView } from "@/components/calendar-view";
 import { RoleBadge } from "@/components/role-badge";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -11,6 +12,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  CalendarDays,
   ClipboardCheck,
   CheckCircle2,
   RefreshCw,
@@ -148,7 +150,7 @@ export function Portal({
       correction?: boolean;
     } | null>(null),
     [publishing, setPublishing] = useState<ClinicalRecord | null>(null);
-  const [view, setView] = useState<"home" | "inbox" | "patients" | "all" | "attest">("home"),
+  const [view, setView] = useState<"home" | "inbox" | "calendar" | "patients" | "all" | "attest">("home"),
     [inboxWaiting, setInboxWaiting] = useState(demo ? 1 : 0),
     [consulting, setConsulting] = useState(false),
     [allPatients, setAllPatients] = useState<Patient[] | null>(null),
@@ -661,6 +663,17 @@ export function Portal({
             {inboxWaiting > 0 && <span className="nav-count alert">{inboxWaiting}</span>}
           </button>
           <button
+            className={"nav-item" + (view === "calendar" ? " selected" : "")}
+            aria-label="Kalender"
+            onClick={() => {
+              setView("calendar");
+              closeDetail();
+            }}
+          >
+            <CalendarDays size={17} />
+            <span className="nav-label">Kalender</span>
+          </button>
+          <button
             className={"nav-item" + (view === "patients" ? " selected" : "")}
             aria-label={`Mina patienter (${patients.length})`}
             onClick={() => {
@@ -743,8 +756,8 @@ export function Portal({
                   className={!detail ? "active" : ""}
                   onClick={closeDetail}
                 >
-                  {view === "home" ? <LayoutDashboard size={15} /> : view === "inbox" ? <Inbox size={15} /> : view === "attest" ? <ClipboardCheck size={15} /> : view === "all" ? <UsersRound size={15} /> : <Users size={15} />}
-                  {view === "home" ? "Översikt" : view === "inbox" ? "Inkorg" : view === "attest" ? "Attestering" : view === "all" ? "Alla patienter" : "Mina patienter"}
+                  {view === "home" ? <LayoutDashboard size={15} /> : view === "inbox" ? <Inbox size={15} /> : view === "calendar" ? <CalendarDays size={15} /> : view === "attest" ? <ClipboardCheck size={15} /> : view === "all" ? <UsersRound size={15} /> : <Users size={15} />}
+                  {view === "home" ? "Översikt" : view === "inbox" ? "Inkorg" : view === "calendar" ? "Kalender" : view === "attest" ? "Attestering" : view === "all" ? "Alla patienter" : "Mina patienter"}
                 </button>
                 {detail && (
                   <span role="tab" aria-selected className="active wb-patient-tab">
@@ -777,9 +790,18 @@ export function Portal({
               demo={demo}
               authorName={session.name}
               onWaiting={setInboxWaiting}
+              onCalendar={() => setView("calendar")}
               onOpenPatient={(p) => {
                 const known = [...demoPatients, ...demoOtherPatients, ...patients, ...(allPatients ?? [])].find((x) => x.id === p.id);
                 void open(known ?? { id: p.id, display_name: p.display_name, identity_label: "", identity_verified: true, last_sync_at: null });
+              }}
+            />
+          ) : !detail && view === "calendar" ? (
+            <CalendarView
+              demo={demo}
+              onOpenPatient={(p) => {
+                const known = [...demoPatients, ...demoOtherPatients, ...patients, ...(allPatients ?? [])].find((x) => x.id === p.id);
+                void open(known ?? { id: p.id, display_name: p.display_name, identity_label: "", identity_verified: true, last_sync_at: null }, "messages");
               }}
             />
           ) : !detail && view === "attest" ? (
@@ -1058,6 +1080,10 @@ export function Portal({
                   patientName={detail.patient.display_name}
                   demo={demo}
                   authorName={session.name}
+                  onCalendar={() => {
+                    setView("calendar");
+                    closeDetail();
+                  }}
                 />
               ) : tab === "history" ? (
                 <section className="panel">
