@@ -3,6 +3,7 @@ import { VitalsWorkspace } from "@/components/vitals-workspace";
 import { ClinicianHome } from "@/components/clinician-home";
 import { ConsultDialog } from "@/components/consult-dialog";
 import { PatientMessages } from "@/components/patient-messages";
+import { InboxView } from "@/components/inbox-view";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Activity,
@@ -19,6 +20,7 @@ import {
   Heart,
   History,
   ImageIcon,
+  Inbox,
   LayoutDashboard,
   Lock,
   LockKeyhole,
@@ -146,7 +148,8 @@ export function Portal({
       correction?: boolean;
     } | null>(null),
     [publishing, setPublishing] = useState<ClinicalRecord | null>(null);
-  const [view, setView] = useState<"home" | "patients" | "all" | "attest">("home"),
+  const [view, setView] = useState<"home" | "inbox" | "patients" | "all" | "attest">("home"),
+    [inboxWaiting, setInboxWaiting] = useState(demo ? 1 : 0),
     [consulting, setConsulting] = useState(false),
     [allPatients, setAllPatients] = useState<Patient[] | null>(null),
     [attest, setAttest] = useState<PendingItem[] | null>(null),
@@ -307,6 +310,28 @@ export function Portal({
     } finally {
       setAttestLoading(false);
     }
+  }, [demo, session]);
+  useEffect(() => {
+    // Inbox badge: the cheap unaudited check, every 15 s while the page is visible.
+    if (demo || !session) return;
+    let active = true;
+    const check = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const r = await api("clinical", { action: "inbox", op: "poll" });
+        if (active) setInboxWaiting(r.waiting ?? 0);
+      } catch {
+        // Retried on the next tick.
+      }
+    };
+    void check();
+    const timer = setInterval(() => void check(), 15000);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", check);
+    };
   }, [demo, session]);
   useEffect(() => {
     void loadAttest();
@@ -632,6 +657,18 @@ export function Portal({
             <span className="nav-label">Översikt</span>
           </button>
           <button
+            className={"nav-item" + (view === "inbox" ? " selected" : "")}
+            aria-label={`Inkorg (${inboxWaiting} väntar på svar)`}
+            onClick={() => {
+              setView("inbox");
+              closeDetail();
+            }}
+          >
+            <Inbox size={17} />
+            <span className="nav-label">Inkorg</span>
+            {inboxWaiting > 0 && <span className="nav-count alert">{inboxWaiting}</span>}
+          </button>
+          <button
             className={"nav-item" + (view === "patients" ? " selected" : "")}
             aria-label={`Mina patienter (${patients.length})`}
             onClick={() => {
@@ -714,8 +751,8 @@ export function Portal({
                   className={!detail ? "active" : ""}
                   onClick={closeDetail}
                 >
-                  {view === "home" ? <LayoutDashboard size={15} /> : view === "attest" ? <ClipboardCheck size={15} /> : view === "all" ? <UsersRound size={15} /> : <Users size={15} />}
-                  {view === "home" ? "Översikt" : view === "attest" ? "Attestering" : view === "all" ? "Alla patienter" : "Mina patienter"}
+                  {view === "home" ? <LayoutDashboard size={15} /> : view === "inbox" ? <Inbox size={15} /> : view === "attest" ? <ClipboardCheck size={15} /> : view === "all" ? <UsersRound size={15} /> : <Users size={15} />}
+                  {view === "home" ? "Översikt" : view === "inbox" ? "Inkorg" : view === "attest" ? "Attestering" : view === "all" ? "Alla patienter" : "Mina patienter"}
                 </button>
                 {detail && (
                   <span role="tab" aria-selected className="active wb-patient-tab">
@@ -741,6 +778,17 @@ export function Portal({
                 void loadAttest();
               }}
               onMyPatients={() => setView("patients")}
+              onInbox={() => setView("inbox")}
+            />
+          ) : !detail && view === "inbox" ? (
+            <InboxView
+              demo={demo}
+              authorName={session.name}
+              onWaiting={setInboxWaiting}
+              onOpenPatient={(p) => {
+                const known = [...demoPatients, ...demoOtherPatients, ...patients, ...(allPatients ?? [])].find((x) => x.id === p.id);
+                void open(known ?? { id: p.id, display_name: p.display_name, identity_label: "", identity_verified: true, last_sync_at: null });
+              }}
             />
           ) : !detail && view === "attest" ? (
             <AttestationGrid

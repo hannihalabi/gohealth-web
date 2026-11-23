@@ -87,6 +87,25 @@ select pg_temp.pm_claims(1);
 select pg_temp.pm_assert((select m is distinct from (public.clinician_patient_messages('poll', '{"patient":"e9000000-0000-4000-8000-000000000001"}')->>'marker') from pm_marker), 'the marker changes when the patient writes');
 select public.clinician_patient_messages('resolve', '{"patient":"e9000000-0000-4000-8000-000000000001"}');
 
+-- Inbox: the assigned doctor's own conversation, waiting first; nothing for others.
+-- (All rows here share one transaction time, so which message is 'latest' is not asserted.)
+select pg_temp.pm_claims(5);
+select public.gohealth_send_message('Inkorgsfråga');
+select pg_temp.pm_claims(1);
+select pg_temp.pm_assert((select (r->>'waiting')::int = 1 and jsonb_array_length(r->'conversations') = 1
+  and (r->'conversations'->0->>'mine')::boolean and (r->'conversations'->0->>'waiting')::int = 1
+  and r->'conversations'->0->>'last_body' is not null
+  from (select public.clinician_message_inbox('list') as r) x), 'the assigned doctor sees the waiting conversation');
+create temp table pm_inbox_marker as select public.clinician_message_inbox('poll')->>'marker' as m;
+select pg_temp.pm_assert((select m is not null and position('Inkorg' in m) = 0 from pm_inbox_marker), 'the inbox marker has no message text');
+select public.clinician_patient_messages('resolve', '{"patient":"e9000000-0000-4000-8000-000000000001"}');
+select pg_temp.pm_assert((select m is distinct from (public.clinician_message_inbox('poll')->>'marker') from pm_inbox_marker), 'the inbox marker changes when handled');
+select pg_temp.pm_claims(3);
+select pg_temp.pm_assert(public.clinician_message_inbox('list')->'conversations' = '[]'::jsonb, 'an unassigned nurse sees no conversations');
+select pg_temp.pm_claims(4);
+select pg_temp.pm_assert(public.clinician_message_inbox('list')->'conversations' = '[]'::jsonb, 'another clinic sees no conversations');
+select pg_temp.pm_denied($q$select public.clinician_message_inbox('delete')$q$, '22023', 'unknown inbox action');
+
 -- Access.
 select pg_temp.pm_claims(3);
 select pg_temp.pm_denied($q$select public.clinician_patient_messages('thread', '{"patient":"e9000000-0000-4000-8000-000000000001"}')$q$, '42501', 'unassigned nurse is denied');
@@ -98,6 +117,7 @@ set local role anon;
 select pg_temp.pm_denied($q$select public.gohealth_messages()$q$, '42501', 'anonymous callers are denied');
 select pg_temp.pm_denied($q$select public.clinician_patient_messages('thread', '{"patient":"e9000000-0000-4000-8000-000000000001"}')$q$, '42501', 'anonymous callers cannot read');
 reset role;
-select pg_temp.pm_assert((select count(*) = 8 from clinical_private.audit where patient_id = 'e9000000-0000-4000-8000-000000000001' and action like 'messages.%'),
+select pg_temp.pm_assert((select count(*) = 10 from clinical_private.audit where patient_id = 'e9000000-0000-4000-8000-000000000001' and action like 'messages.%'),
   'sends, replies, reads and resolutions are audited; polls are not');
+select pg_temp.pm_assert((select count(*) = 3 from clinical_private.audit where action = 'messages.inbox'), 'inbox lists are audited, polls are not');
 select 'Patient message tests passed: clinician-started conversations, patient replies, read state, waiting inbox, handling, clinic access, audit.' as result;

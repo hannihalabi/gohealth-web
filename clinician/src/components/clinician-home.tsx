@@ -28,13 +28,14 @@ function greeting() {
   return hour < 10 ? "God morgon" : hour < 18 ? "God eftermiddag" : "God kväll";
 }
 
-export function ClinicianHome({ demo, name, demoData, onOpenPatient, onAttest, onMyPatients }: {
+export function ClinicianHome({ demo, name, demoData, onOpenPatient, onAttest, onMyPatients, onInbox }: {
   demo: boolean;
   name: string;
   demoData: HomeData;
   onOpenPatient: (patient: { id: string; display_name: string }, tab?: "overview" | "messages") => void;
   onAttest: () => void;
   onMyPatients: () => void;
+  onInbox?: () => void;
 }) {
   const [data, setData] = useState<HomeData | null>(demo ? demoData : null);
   const [error, setError] = useState("");
@@ -116,7 +117,7 @@ export function ClinicianHome({ demo, name, demoData, onOpenPatient, onAttest, o
       <div className="home-kpis">
         <Kpi icon={<Users size={18} />} label="Mina patienter" value={counts?.assigned} sub={counts ? `${counts.clinic} i kliniken` : ""} onClick={onMyPatients} />
         <Kpi icon={<ClipboardCheck size={18} />} label="Osignerade ärenden" value={counts?.unsigned} tone={counts?.unsigned ? "alert" : ""} sub="väntar på granskning" onClick={onAttest} />
-        <Kpi icon={<MessageSquareText size={18} />} label="Patientmeddelanden" value={counts?.messages} tone={counts?.messages ? "alert" : ""} sub="väntar på svar" />
+        <Kpi icon={<MessageSquareText size={18} />} label="Patientmeddelanden" value={counts?.messages} tone={counts?.messages ? "alert" : ""} sub="väntar på svar" onClick={onInbox} />
         <Kpi icon={<MessagesSquare size={18} />} label="Konsultationer" value={counts?.consultations} tone={counts?.consultations ? "alert" : ""} sub="väntar på ditt svar" />
         <Kpi icon={<TriangleAlert size={18} />} label="Avvikelser" value={data?.deviations.length} tone={data?.deviations.some((d) => d.severity === "high") ? "alert" : ""} sub="i din patientpool" />
       </div>
@@ -149,7 +150,8 @@ export function ClinicianHome({ demo, name, demoData, onOpenPatient, onAttest, o
             </p>
           </Card>
 
-          <Card icon={<MessageSquareText size={18} />} title="Meddelanden från patienter" subtitle="Väntar på svar från vårdteamet">
+          <Card icon={<MessageSquareText size={18} />} title="Meddelanden från patienter" subtitle="Väntar på svar från vårdteamet"
+            action={onInbox && <button className="home-link" onClick={onInbox}>Inkorg <ArrowRight size={14} /></button>}>
             {!data ? <Loading /> : !data.messages?.length ? (
               <p className="home-empty">Inga meddelanden väntar.</p>
             ) : (
