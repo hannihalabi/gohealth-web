@@ -77,6 +77,16 @@ select pg_temp.pm_assert((public.clinician_overview()->'counts'->>'messages')::i
 select public.clinician_patient_messages('resolve', '{"patient":"e9000000-0000-4000-8000-000000000001"}');
 select pg_temp.pm_assert((public.clinician_overview()->'counts'->>'messages')::int = 0, 'resolved without reply');
 
+-- The change marker moves with new messages and read state, and carries no message text.
+select pg_temp.pm_claims(1);
+create temp table pm_marker as select public.clinician_patient_messages('poll', '{"patient":"e9000000-0000-4000-8000-000000000001"}')->>'marker' as m;
+select pg_temp.pm_assert((select m is not null and position('Tack' in m) = 0 from pm_marker), 'the marker has no message text');
+select pg_temp.pm_claims(5);
+select public.gohealth_send_message('En fråga till.');
+select pg_temp.pm_claims(1);
+select pg_temp.pm_assert((select m is distinct from (public.clinician_patient_messages('poll', '{"patient":"e9000000-0000-4000-8000-000000000001"}')->>'marker') from pm_marker), 'the marker changes when the patient writes');
+select public.clinician_patient_messages('resolve', '{"patient":"e9000000-0000-4000-8000-000000000001"}');
+
 -- Access.
 select pg_temp.pm_claims(3);
 select pg_temp.pm_denied($q$select public.clinician_patient_messages('thread', '{"patient":"e9000000-0000-4000-8000-000000000001"}')$q$, '42501', 'unassigned nurse is denied');
@@ -88,6 +98,6 @@ set local role anon;
 select pg_temp.pm_denied($q$select public.gohealth_messages()$q$, '42501', 'anonymous callers are denied');
 select pg_temp.pm_denied($q$select public.clinician_patient_messages('thread', '{"patient":"e9000000-0000-4000-8000-000000000001"}')$q$, '42501', 'anonymous callers cannot read');
 reset role;
-select pg_temp.pm_assert((select count(*) = 6 from clinical_private.audit where patient_id = 'e9000000-0000-4000-8000-000000000001' and action like 'messages.%'),
-  'sends, replies, reads and resolutions are audited');
+select pg_temp.pm_assert((select count(*) = 8 from clinical_private.audit where patient_id = 'e9000000-0000-4000-8000-000000000001' and action like 'messages.%'),
+  'sends, replies, reads and resolutions are audited; polls are not');
 select 'Patient message tests passed: clinician-started conversations, patient replies, read state, waiting inbox, handling, clinic access, audit.' as result;

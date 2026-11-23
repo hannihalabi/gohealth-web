@@ -42,22 +42,33 @@ export function ClinicianHome({ demo, name, demoData, onOpenPatient, onAttest, o
   const [news, setNews] = useState<NewsSource[] | null>(null);
   const [newsTab, setNewsTab] = useState("all");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (demo) return;
-    setBusy(true);
+    if (!silent) setBusy(true);
     try {
       setData(await post({ action: "overview" }));
       setError("");
     } catch (e) {
-      setError((e as Error).message);
+      // A failed background refresh keeps the current view; only a requested refresh reports the error.
+      if (!silent) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (!silent) setBusy(false);
     }
   }, [demo]);
   useEffect(() => {
     void load();
-    const timer = setInterval(() => void load(), 120000);
-    return () => clearInterval(timer);
+    // New patient messages and consultations show up within 30 s while the page is visible.
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void load(true);
+    }, 30000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [load]);
   useEffect(() => {
     fetch("/api/news")

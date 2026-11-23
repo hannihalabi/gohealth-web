@@ -16,7 +16,7 @@ const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("overview") }).strict(),
   z.object({
     action: z.literal("messages"),
-    op: z.enum(["thread", "send", "resolve"]),
+    op: z.enum(["thread", "send", "resolve", "poll"]),
     patientId: z.uuid(),
     body: z.string().trim().min(1).max(4000).optional(),
   }).strict(),

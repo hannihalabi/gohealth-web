@@ -65,6 +65,36 @@ export function PatientMessages({ patientId, patientName, demo, authorName, onCh
   useEffect(() => {
     run("thread").catch((e: Error) => setError(e.message));
   }, [run]);
+  // While the chat is open and visible, a cheap check every 4 s; the conversation is fetched only when it changed.
+  const marker = useRef<string | null>(null);
+  useEffect(() => {
+    if (demo) return;
+    let active = true;
+    let busyCheck = false;
+    const check = async () => {
+      if (busyCheck || document.visibilityState !== "visible") return;
+      busyCheck = true;
+      try {
+        const next = (await post({ action: "messages", op: "poll", patientId }))?.marker as string | undefined;
+        if (!active || next === undefined) return;
+        if (marker.current !== null && next !== marker.current) setThread(await post({ action: "messages", op: "thread", patientId }));
+        marker.current = next;
+      } catch {
+        // A missed check is retried on the next tick.
+      } finally {
+        busyCheck = false;
+      }
+    };
+    void check();
+    const timer = setInterval(() => void check(), 4000);
+    const onVisible = () => void check();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [demo, patientId]);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "nearest" });
   }, [thread?.messages.length]);
@@ -75,6 +105,7 @@ export function PatientMessages({ patientId, patientName, demo, authorName, onCh
     try {
       await run(op, op === "send" ? body.trim() : undefined);
       if (op === "send") setBody("");
+      if (!demo) marker.current = (await post({ action: "messages", op: "poll", patientId }).catch(() => null))?.marker ?? marker.current;
       if (op !== "thread") onChanged?.();
     } catch (e) {
       setError((e as Error).message);
