@@ -22,12 +22,15 @@ export type HomeDeviation = {
   detail: string;
   at: string | null;
 };
+export type HomePatientMessage = { patient_id: string; display_name: string; body: string; created_at: string; waiting: number };
 export type HomeUnsigned = { id: string; patient_id: string; display_name: string; kind: string; title: string | null; created_at: string };
 export type HomeData = {
-  counts: { assigned: number; clinic: number; unsigned: number; consultations: number };
+  counts: { assigned: number; clinic: number; unsigned: number; consultations: number; messages?: number };
   unsigned: HomeUnsigned[];
   announcements: HomeAnnouncement[];
   consultations: HomeConsultation[];
   deviations: HomeDeviation[];
+  /** Patient messages waiting for the care team. */
+  messages?: HomePatientMessage[];
 };
 export type Colleague = { user_id: string; display_name: string };

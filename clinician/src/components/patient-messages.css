@@ -1,0 +1,15 @@
+.pm .panel-heading { align-items: flex-start; }
+.pm-tools { display: flex; gap: 8px; }
+.pm-thread { display: grid; gap: 12px; max-height: 520px; overflow-y: auto; padding: 14px; margin: 4px 0 14px; border: 1px solid var(--line); border-radius: 12px; background: #fbfafc; }
+.pm-empty { color: var(--muted); font-size: 13px; margin: 0; }
+.pm-msg { display: grid; gap: 4px; max-width: min(620px, 82%); }
+.pm-msg.is-team { justify-self: end; justify-items: end; }
+.pm-msg.is-patient { justify-self: start; }
+.pm-bubble { padding: 10px 13px; border-radius: 14px; font-size: 14px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.pm-msg.is-team .pm-bubble { background: var(--plum); color: #fff; border-bottom-right-radius: 4px; }
+.pm-msg.is-patient .pm-bubble { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.pm-msg small { color: var(--muted); font-size: 11.5px; }
+.pm-wait { color: #a3263f; font-weight: 600; }
+.pm-compose { display: flex; gap: 10px; align-items: flex-end; }
+.pm-compose textarea { flex: 1; margin: 0; font: inherit; font-size: 14px; resize: vertical; }
+.pm-note { color: var(--muted); font-size: 13px; }

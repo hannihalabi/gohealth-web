@@ -2,6 +2,7 @@
 import { VitalsWorkspace } from "@/components/vitals-workspace";
 import { ClinicianHome } from "@/components/clinician-home";
 import { ConsultDialog } from "@/components/consult-dialog";
+import { PatientMessages } from "@/components/patient-messages";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Activity,
@@ -22,6 +23,7 @@ import {
   Lock,
   LockKeyhole,
   LogOut,
+  MessageSquareText,
   MessagesSquare,
   Plus,
   Search,
@@ -75,6 +77,7 @@ const tabs = [
   ["imaging", "Bilddiagnostik", ImageIcon],
   ["vaccination", "Vaccinationer", Syringe],
   ["vitals", "Vitalparametrar", Activity],
+  ["messages", "Meddelanden", MessageSquareText],
   ["history", "Historik", History],
 ] as const;
 type Tab = (typeof tabs)[number][0];
@@ -323,11 +326,11 @@ export function Portal({
     if (record && record.status === "draft" && session?.role === "doctor") setPublishing(record);
     setReview(null);
   }, [review, detail, session]);
-  async function open(patient: Patient) {
+  async function open(patient: Patient, target: Tab = "overview") {
     const token = ++requestId.current;
     setDetail(null);
     setEditor(null);
-    setTab("overview");
+    setTab(target);
     setError("");
     setBusy(true);
     try {
@@ -729,9 +732,9 @@ export function Portal({
               demo={demo}
               name={session.name}
               demoData={demoHome()}
-              onOpenPatient={(p) => {
+              onOpenPatient={(p, target) => {
                 const known = [...demoPatients, ...demoOtherPatients, ...patients, ...(allPatients ?? [])].find((x) => x.id === p.id);
-                void open(known ?? { id: p.id, display_name: p.display_name, identity_label: "", identity_verified: true, last_sync_at: null });
+                void open(known ?? { id: p.id, display_name: p.display_name, identity_label: "", identity_verified: true, last_sync_at: null }, target);
               }}
               onAttest={() => {
                 setView("attest");
@@ -898,6 +901,10 @@ export function Portal({
               {tab === "overview" ? (
                 <>
                   <div className="overview-actions">
+                    <button className="button secondary" onClick={() => setTab("messages")}>
+                      <MessageSquareText size={16} />
+                      Skicka meddelande
+                    </button>
                     <button className="button secondary" onClick={() => setConsulting(true)}>
                       <MessagesSquare size={16} />
                       Konsultera med en kollega
@@ -1004,6 +1011,14 @@ export function Portal({
                     </section>
                   </div>
                 </>
+              ) : tab === "messages" ? (
+                <PatientMessages
+                  key={detail.patient.id}
+                  patientId={detail.patient.id}
+                  patientName={detail.patient.display_name}
+                  demo={demo}
+                  authorName={session.name}
+                />
               ) : tab === "history" ? (
                 <section className="panel">
                   <div className="panel-heading">

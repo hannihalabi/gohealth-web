@@ -1,6 +1,6 @@
 "use client";
 import {
-  Activity, ArrowRight, ClipboardCheck, ExternalLink, Megaphone, MessagesSquare, Newspaper, RefreshCw, Send, TriangleAlert, Users, X,
+  Activity, ArrowRight, ClipboardCheck, ExternalLink, Megaphone, MessageSquareText, MessagesSquare, Newspaper, RefreshCw, Send, TriangleAlert, Users, X,
 } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { HomeConsultation, HomeData } from "@/lib/clinician-home";
@@ -18,6 +18,8 @@ async function post(body: unknown) {
   if (!r.ok) throw new Error(data.error || "Åtgärden kunde inte genomföras.");
   return data;
 }
+const time = (iso: string) =>
+  new Date(iso).toLocaleString("sv-SE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Stockholm" });
 const day = (iso: string | null) =>
   iso ? new Date(iso.length === 10 ? iso + "T12:00:00Z" : iso).toLocaleDateString("sv-SE", { day: "numeric", month: "short", timeZone: "Europe/Stockholm" }) : "";
 const kindLabel: Record<string, string> = { lab: "Provsvar", vaccination: "Vaccination", imaging: "Bilddiagnostik" };
@@ -30,7 +32,7 @@ export function ClinicianHome({ demo, name, demoData, onOpenPatient, onAttest, o
   demo: boolean;
   name: string;
   demoData: HomeData;
-  onOpenPatient: (patient: { id: string; display_name: string }) => void;
+  onOpenPatient: (patient: { id: string; display_name: string }, tab?: "overview" | "messages") => void;
   onAttest: () => void;
   onMyPatients: () => void;
 }) {
@@ -103,6 +105,7 @@ export function ClinicianHome({ demo, name, demoData, onOpenPatient, onAttest, o
       <div className="home-kpis">
         <Kpi icon={<Users size={18} />} label="Mina patienter" value={counts?.assigned} sub={counts ? `${counts.clinic} i kliniken` : ""} onClick={onMyPatients} />
         <Kpi icon={<ClipboardCheck size={18} />} label="Osignerade ärenden" value={counts?.unsigned} tone={counts?.unsigned ? "alert" : ""} sub="väntar på granskning" onClick={onAttest} />
+        <Kpi icon={<MessageSquareText size={18} />} label="Patientmeddelanden" value={counts?.messages} tone={counts?.messages ? "alert" : ""} sub="väntar på svar" />
         <Kpi icon={<MessagesSquare size={18} />} label="Konsultationer" value={counts?.consultations} tone={counts?.consultations ? "alert" : ""} sub="väntar på ditt svar" />
         <Kpi icon={<TriangleAlert size={18} />} label="Avvikelser" value={data?.deviations.length} tone={data?.deviations.some((d) => d.severity === "high") ? "alert" : ""} sub="i din patientpool" />
       </div>
@@ -135,6 +138,28 @@ export function ClinicianHome({ demo, name, demoData, onOpenPatient, onAttest, o
             </p>
           </Card>
 
+          <Card icon={<MessageSquareText size={18} />} title="Meddelanden från patienter" subtitle="Väntar på svar från vårdteamet">
+            {!data ? <Loading /> : !data.messages?.length ? (
+              <p className="home-empty">Inga meddelanden väntar.</p>
+            ) : (
+              <ul className="home-list">
+                {data.messages.map((m) => (
+                  <li key={m.patient_id}>
+                    <button className="home-row" onClick={() => onOpenPatient({ id: m.patient_id, display_name: m.display_name }, "messages")}>
+                      <span className="home-dot warn" aria-hidden="true" />
+                      <span className="home-row-main">
+                        <strong>{m.display_name}{m.waiting > 1 ? ` · ${m.waiting} meddelanden` : ""}</strong>
+                        <small className="home-preview">{m.body}</small>
+                      </span>
+                      <span className="home-row-meta">{time(m.created_at)}</span>
+                      <ArrowRight size={15} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
           <Card icon={<MessagesSquare size={18} />} title="Konsultationer" subtitle="Skickas från patientens översikt">
             {!data ? <Loading /> : !data.consultations.length ? (
               <p className="home-empty">Inga öppna konsultationer.</p>
@@ -147,7 +172,7 @@ export function ClinicianHome({ demo, name, demoData, onOpenPatient, onAttest, o
         </div>
 
         <div className="home-col">
-          <Card icon={<Megaphone size={18} />} title="Meddelanden" subtitle="Från administrationen till all personal">
+          <Card icon={<Megaphone size={18} />} title="Från administrationen" subtitle="Meddelanden till all personal">
             {!data ? <Loading /> : !data.announcements.length ? (
               <p className="home-empty">Inga meddelanden.</p>
             ) : (

@@ -207,7 +207,8 @@ export function demoPublish(
 /** Synthetic start page for the demonstration environment. */
 export function demoHome(): HomeData {
   return {
-    counts: { assigned: demoPatients.length, clinic: demoPatients.length + demoOtherPatients.length, unsigned: 1, consultations: 1 },
+    counts: { assigned: demoPatients.length, clinic: demoPatients.length + demoOtherPatients.length, unsigned: 1, consultations: 1, messages: 1 },
+    messages: [{ patient_id: demoPatients[0].id, display_name: demoPatients[0].display_name, body: "Tack! Behöver jag ta om sköldkörtelprovet?", created_at: "2026-11-16T10:05:00Z", waiting: 1 }],
     unsigned: [{ id: "demo-unsigned-1", patient_id: demoPatients[0].id, display_name: demoPatients[0].display_name, kind: "lab", title: "Uppföljande sköldkörtelprov", created_at: "2026-11-17T09:00:00Z" }],
     announcements: [{ id: "demo-announcement-1", title: "Influensavaccination", body: "Säsongens vaccination startar på måndag. Prioritera patienter i riskgrupp.", created_at: "2026-11-16T08:00:00Z", author: "Administratör" }],
     consultations: [{
