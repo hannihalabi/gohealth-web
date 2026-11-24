@@ -152,6 +152,7 @@ export function Portal({
     [publishing, setPublishing] = useState<ClinicalRecord | null>(null);
   const [view, setView] = useState<"home" | "inbox" | "calendar" | "patients" | "all" | "attest">("home"),
     [inboxWaiting, setInboxWaiting] = useState(demo ? 1 : 0),
+    [messageCount, setMessageCount] = useState<number | null>(null),
     [consulting, setConsulting] = useState(false),
     [allPatients, setAllPatients] = useState<Patient[] | null>(null),
     [attest, setAttest] = useState<PendingItem[] | null>(null),
@@ -356,6 +357,12 @@ export function Portal({
   async function open(patient: Patient, target: Tab = "overview") {
     const token = ++requestId.current;
     setDetail(null);
+    setMessageCount(demo ? 2 : null);
+    // The tab count comes from the unaudited change check, so opening a patient is not logged as reading the chat.
+    if (!demo)
+      void api("clinical", { action: "messages", op: "poll", patientId: patient.id })
+        .then((r) => { if (token === requestId.current) setMessageCount(typeof r?.count === "number" ? r.count : null); })
+        .catch(() => undefined);
     setEditor(null);
     setTab(target);
     setError("");
@@ -584,6 +591,13 @@ export function Portal({
     setBusy(false);
   };
   const records = detail?.records.filter((x) => !x.superseded_at) || [],
+    tabCount: Partial<Record<Tab, number | null>> = {
+      lab: records.filter((x) => x.kind === "lab").length,
+      imaging: records.filter((x) => x.kind === "imaging").length,
+      vaccination: records.filter((x) => x.kind === "vaccination").length,
+      vitals: new Set(detail?.vitals.map((v) => v.kind) ?? []).size,
+      messages: messageCount,
+    },
     published = records.filter((x) => x.status === "published"),
     drafts = records.filter((x) => x.status === "draft");
   return (
@@ -957,6 +971,9 @@ export function Portal({
                   >
                     <Icon size={16} />
                     {label}
+                    {id in tabCount && (
+                      <span className="tab-count">{` (${tabCount[id] ?? "–"})`}</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -1080,6 +1097,7 @@ export function Portal({
                   patientName={detail.patient.display_name}
                   demo={demo}
                   authorName={session.name}
+                  onCount={setMessageCount}
                   onCalendar={() => {
                     setView("calendar");
                     closeDetail();

@@ -147,6 +147,13 @@ select pg_temp.cb_claims(5);
 select pg_temp.cb_assert((select jsonb_array_length(r->'messages') = 2 and (r->>'can_reply')::boolean from (select public.gohealth_messages() as r) x),
   'a new conversation, without the closed one');
 
+-- The unaudited change check gives the tab its count, without message text.
+select pg_temp.cb_claims(1);
+select pg_temp.cb_assert((select (p->>'count')::int = jsonb_array_length(t->'messages') and (p->>'waiting')::int = 0 and position('Vi hörs' in p::text) = 0
+  from (select public.clinician_patient_messages('poll', '{"patient":"f4000000-0000-4000-8000-000000000001"}') as p,
+               public.clinician_patient_messages('thread', '{"patient":"f4000000-0000-4000-8000-000000000001"}') as t) x),
+  'the change check counts the messages');
+
 -- Quick replies are personal.
 select pg_temp.cb_claims(1);
 create temp table cb_qr as select (r->'replies'->0->>'id')::uuid as id, jsonb_array_length(r->'replies') as n

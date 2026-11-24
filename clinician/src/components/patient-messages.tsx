@@ -55,13 +55,14 @@ function demoThread(patientName: string): Thread {
 }
 
 /** Conversation between the care team and the patient. The patient reads, replies and books in the app. */
-export function PatientMessages({ patientId, patientName, demo, authorName, onChanged, onCalendar }: {
+export function PatientMessages({ patientId, patientName, demo, authorName, onChanged, onCalendar, onCount }: {
   patientId: string;
   patientName: string;
   demo: boolean;
   authorName: string;
   onChanged?: () => void;
   onCalendar?: () => void;
+  onCount?: (count: number) => void;
 }) {
   const [thread, setThread] = useState<Thread | null>(demo ? demoThread(patientName) : null);
   const [body, setBody] = useState("");
@@ -142,7 +143,8 @@ export function PatientMessages({ patientId, patientName, demo, authorName, onCh
   }, [demo, patientId]);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "nearest" });
-  }, [thread?.messages.length]);
+    if (thread) onCount?.(thread.messages.length);
+  }, [thread, thread?.messages.length, onCount]);
 
   async function act(op: Op, extra: Record<string, unknown> = {}) {
     setBusy(true);
