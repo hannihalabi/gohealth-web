@@ -3,6 +3,8 @@ import "./role-badge.css";
 
 /** Role as a Swedish healthcare name badge: Läkare red, Sjuksköterska blue, Psykolog orange, Medicinsk sekreterare purple. */
 export function RoleBadge({ role, small = false }: { role: string; small?: boolean }) {
+  if (role === "patient")
+    return <span className={`role-badge role-patient${small ? " is-small" : ""}`}>Patient</span>;
   const known = role in roleNames;
   return (
     <span className={`role-badge role-${known ? role : "other"}${small ? " is-small" : ""}`}>
