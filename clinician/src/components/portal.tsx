@@ -5,6 +5,7 @@ import { ConsultDialog } from "@/components/consult-dialog";
 import { PatientMessages } from "@/components/patient-messages";
 import { InboxView } from "@/components/inbox-view";
 import { CalendarView } from "@/components/calendar-view";
+import { PatientHistory } from "@/components/patient-history";
 import { RoleBadge } from "@/components/role-badge";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -421,7 +422,7 @@ export function Portal({
         ...detail,
         records: [record, ...detail.records.filter((x) => x.id !== record.id)],
         audit: [
-          { action: "Utkast sparat", created_at: new Date().toISOString() },
+          { action: "record.save_draft", created_at: new Date().toISOString() },
           ...detail.audit,
         ],
       });
@@ -457,7 +458,7 @@ export function Portal({
       storeDemo({
         ...detail,
         records: detail.records.filter((x) => x.id !== target.id),
-        audit: [{ action: "Undersökning borttagen", created_at: new Date().toISOString() }, ...detail.audit],
+        audit: [{ action: "record.annul", created_at: new Date().toISOString() }, ...detail.audit],
       });
     } else {
       await api("clinical", { action: "annul", recordId: target.id, reason, confirm: "Ta bort" });
@@ -482,7 +483,7 @@ export function Portal({
             new Date().toISOString(),
           ),
           audit: [
-            { action: "Svar publicerat", created_at: new Date().toISOString() },
+            { action: "record.publish", created_at: new Date().toISOString() },
             ...detail.audit,
           ],
         });
@@ -1104,31 +1105,15 @@ export function Portal({
                   }}
                 />
               ) : tab === "history" ? (
-                <section className="panel">
-                  <div className="panel-heading">
-                    <div>
-                      <h2>Åtkomst och ändringar</h2>
-                      <p>
-                        Senaste händelser för denna patient. Historiken
-                        innehåller inga provvärden.
-                      </p>
-                    </div>
-                  </div>
-                  {detail.audit.length ? (
-                    detail.audit.map((a, i) => (
-                      <div key={i} className="history-row">
-                        <CheckCircle2 size={17} />
-                        <strong>{a.action}</strong>
-                        <span>{timestamp(a.created_at)}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <Empty
-                      title="Inga händelser"
-                      description="Händelser visas när patientuppgifter öppnas eller ändras."
-                    />
-                  )}
-                </section>
+                <PatientHistory
+                  key={detail.patient.id}
+                  patientId={detail.patient.id}
+                  demo={demo}
+                  demoEvents={detail.audit.map((a, i) => ({
+                    id: i, at: a.created_at, action: a.action, actor: session.name, role: session.role,
+                    record: null,
+                  }))}
+                />
               ) : tab === "vitals" ? (
                 <VitalsWorkspace key={detail.patient.id} detail={detail} demo={demo}
                   onRefresh={() => reload(detail.patient.id, requestId.current)} />

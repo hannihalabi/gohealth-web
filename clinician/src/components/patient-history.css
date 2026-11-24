@@ -1,0 +1,15 @@
+.ph-people { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }
+.ph-h { display: flex; align-items: center; gap: 7px; margin: 6px 0 4px; font-size: 14px; }
+.ph-h span, .ph-access summary span { color: var(--muted); font-weight: 500; }
+.ph-list { list-style: none; margin: 0; padding: 0; }
+.ph-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; line-height: 1.5; }
+.ph-icon { color: var(--plum); display: grid; place-items: center; transform: translateY(3px); }
+.ph-text strong { font-weight: 600; margin-right: 6px; }
+.ph-text .role-badge { margin-right: 6px; vertical-align: 1px; }
+.ph-text small { color: var(--muted); }
+.ph-row time { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ph-access { margin-top: 18px; border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
+.ph-access summary { cursor: pointer; padding: 12px 0; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.ph-access .ph-icon { color: var(--muted); }
+.ph-empty { color: var(--muted); font-size: 13px; margin: 8px 0; }
+@media (max-width: 760px) { .ph-row { grid-template-columns: 24px 1fr; } .ph-row time { grid-column: 2; } }

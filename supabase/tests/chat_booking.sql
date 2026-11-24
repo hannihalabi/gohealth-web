@@ -154,6 +154,20 @@ select pg_temp.cb_assert((select (p->>'count')::int = jsonb_array_length(t->'mes
                public.clinician_patient_messages('thread', '{"patient":"f4000000-0000-4000-8000-000000000001"}') as t) x),
   'the change check counts the messages');
 
+-- Patient history: every clinician's actions with name and role, visible to colleagues; no message text.
+select pg_temp.cb_claims(2);
+create temp table cb_hist as select public.clinician_patient_history('f4000000-0000-4000-8000-000000000001') as h;
+select pg_temp.cb_assert((select count(*) filter (where e->>'actor' = 'Dr. Assigned' and e->>'role' = 'doctor' and e->>'action' = 'messages.send') >= 1
+    and count(*) filter (where e->>'actor' = 'Booking patient' and e->>'role' = 'patient') >= 1
+  from cb_hist, jsonb_array_elements(h->'events') e), 'a colleague sees who did what, with roles');
+select pg_temp.cb_assert((select position('Hej! Vi behöver ses' in h::text) = 0 from cb_hist), 'no message text in the history');
+select pg_temp.cb_claims(3);
+select pg_temp.cb_denied($q$select public.clinician_patient_history('f4000000-0000-4000-8000-000000000001')$q$, '42501', 'unassigned nurse has no history');
+select pg_temp.cb_claims(4);
+select pg_temp.cb_denied($q$select public.clinician_patient_history('f4000000-0000-4000-8000-000000000001')$q$, '42501', 'another clinic has no history');
+select pg_temp.cb_claims(5);
+select pg_temp.cb_denied($q$select public.clinician_patient_history('f4000000-0000-4000-8000-000000000001')$q$, '42501', 'patients have no history view');
+
 -- Quick replies are personal.
 select pg_temp.cb_claims(1);
 create temp table cb_qr as select (r->'replies'->0->>'id')::uuid as id, jsonb_array_length(r->'replies') as n
