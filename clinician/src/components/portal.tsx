@@ -660,6 +660,7 @@ export function Portal({
             className={"nav-item" + (view === "home" ? " selected" : "")}
             aria-label="Översikt"
             onClick={() => {
+              rail.navClick((view === "home") && !detail);
               setView("home");
               closeDetail();
             }}
@@ -671,6 +672,7 @@ export function Portal({
             className={"nav-item" + (view === "inbox" ? " selected" : "")}
             aria-label={`Inkorg (${inboxWaiting} väntar på svar)`}
             onClick={() => {
+              rail.navClick((view === "inbox") && !detail);
               setView("inbox");
               closeDetail();
             }}
@@ -683,6 +685,7 @@ export function Portal({
             className={"nav-item" + (view === "calendar" ? " selected" : "")}
             aria-label="Kalender"
             onClick={() => {
+              rail.navClick((view === "calendar") && !detail);
               setView("calendar");
               closeDetail();
             }}
@@ -694,6 +697,7 @@ export function Portal({
             className={"nav-item" + (view === "patients" || view === "all" ? " selected" : "")}
             aria-label={`Patienter (${patients.length} egna)`}
             onClick={() => {
+              rail.navClick((view === "patients" || view === "all") && !detail);
               if (view !== "patients" && view !== "all") setView("patients");
               setQuery("");
               closeDetail();
@@ -707,6 +711,7 @@ export function Portal({
             className={"nav-item" + (view === "attest" ? " selected" : "")}
             aria-label={`Attestering (${attest?.length ?? 0})`}
             onClick={() => {
+              rail.navClick((view === "attest") && !detail);
               setView("attest");
               closeDetail();
               void loadAttest();

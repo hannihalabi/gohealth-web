@@ -33,6 +33,8 @@ export function useRail(key: string) {
     style: { "--rail": `${rail}px` } as CSSProperties,
     className: (state.collapsed ? " rail-collapsed" : "") + (dragging ? " rail-dragging" : ""),
     toggle: useCallback(() => setState((s) => ({ ...s, collapsed: !s.collapsed })), []),
+    /** A menu item was clicked: a collapsed rail opens; clicking the page you are already on folds it away. */
+    navClick: useCallback((current: boolean) => setState((s) => (s.collapsed ? { ...s, collapsed: false } : current ? { ...s, collapsed: true } : s)), []),
     setWidth: useCallback((width: number, collapsed = false) => setState({ width: Math.min(MAX, Math.max(MIN, width)), collapsed }), []),
   };
 }

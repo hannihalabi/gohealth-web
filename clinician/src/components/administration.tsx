@@ -434,6 +434,7 @@ export function AdministrationWorkspace({
               key={id}
               className={"nav-item " + (tab === id ? "selected" : "")}
               onClick={() => {
+                rail.navClick(tab === id && !query && !editor);
                 setTab(id);
                 setShowAll(false);
                 if (query) {
