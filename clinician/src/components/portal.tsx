@@ -6,6 +6,7 @@ import { PatientMessages } from "@/components/patient-messages";
 import { InboxView } from "@/components/inbox-view";
 import { CalendarView } from "@/components/calendar-view";
 import { PatientHistory } from "@/components/patient-history";
+import { RailControls, useRail } from "@/components/rail";
 import { RoleBadge } from "@/components/role-badge";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -151,6 +152,7 @@ export function Portal({
       correction?: boolean;
     } | null>(null),
     [publishing, setPublishing] = useState<ClinicalRecord | null>(null);
+  const rail = useRail("gohealth.rail.clinical");
   const [view, setView] = useState<"home" | "inbox" | "calendar" | "patients" | "all" | "attest">("home"),
     [inboxWaiting, setInboxWaiting] = useState(demo ? 1 : 0),
     [messageCount, setMessageCount] = useState<number | null>(null),
@@ -602,7 +604,7 @@ export function Portal({
     published = records.filter((x) => x.status === "published"),
     drafts = records.filter((x) => x.status === "draft");
   return (
-    <div className="workspace clinical-workspace">
+    <div className={"workspace clinical-workspace" + rail.className} style={rail.style}>
       <header className="admin-topbar">
         <a className="admin-brand" href={demo ? "/demo" : links.clinical}>
           <span className="brand-mark">
@@ -728,6 +730,7 @@ export function Portal({
             {!!attest?.length && <span className="nav-count alert">{attest.length}</span>}
           </button>
         </nav>
+        <RailControls rail={rail} />
       </aside>
       <div className="main-shell">
         {demo && (

@@ -1,0 +1,25 @@
+/* Collapsible, resizable navigation rail. The width is the --rail variable on the workspace. */
+:is(.administration-workspace,.clinical-workspace) .admin-rail { display: flex; flex-direction: column; overflow: visible; transition: width .2s ease; }
+:is(.administration-workspace,.clinical-workspace) .main-shell { transition: margin-left .2s ease, width .2s ease; }
+.rail-dragging :is(.admin-rail, .main-shell) { transition: none !important; }
+.rail-dragging { cursor: col-resize; user-select: none; }
+.admin-rail .nav-item { white-space: nowrap; overflow: hidden; }
+.admin-rail .nav-label { overflow: hidden; text-overflow: ellipsis; }
+.rail-foot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line); }
+.rail-toggle { color: var(--muted) !important; }
+.rail-grip { position: absolute; top: 0; right: -4px; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; touch-action: none; }
+.rail-grip::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; border-radius: 2px; background: transparent; transition: background .15s; }
+.rail-grip:hover::after, .rail-grip:focus-visible::after, .rail-dragging .rail-grip::after { background: var(--plum); }
+.rail-grip:focus-visible { outline: none; }
+
+/* Collapsed: icons only, counts become dots. */
+.rail-collapsed .admin-rail { padding-left: 8px; padding-right: 8px; }
+.rail-collapsed .admin-rail .nav-item { position: relative; justify-content: center; gap: 0; padding-left: 0; padding-right: 0; }
+.rail-collapsed .admin-rail .nav-label { display: none; }
+.rail-collapsed .admin-rail .nav-count { position: absolute; top: 4px; right: 6px; min-width: 8px; height: 8px; padding: 0; font-size: 0; border-radius: 50%; background: var(--plum); margin: 0; }
+.rail-collapsed .admin-rail .nav-count.alert { background: #c4213d; }
+
+@media (max-width: 900px) {
+  .rail-foot, .rail-grip { display: none; }
+  .rail-collapsed .admin-rail .nav-label { display: inline; }
+}

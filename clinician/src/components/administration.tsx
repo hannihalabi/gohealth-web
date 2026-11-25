@@ -45,6 +45,7 @@ import { ActivityLog } from "@/components/activity-log";
 import { AnnouncementsPanel } from "@/components/announcements-panel";
 import { SystemOverview } from "@/components/overview/system-overview";
 import { OrganizationChart } from "@/components/overview/organization-chart";
+import { RailControls, useRail } from "@/components/rail";
 import "./shell.css";
 import "./administration.css";
 const demoUser = "10000000-0000-4000-8000-000000000010";
@@ -140,6 +141,7 @@ export function AdministrationWorkspace({
   onLogout: () => Promise<void>;
   links: PortalLinks;
 }) {
+  const rail = useRail("gohealth.rail.administration");
   const organizations = session.organizations ?? [],
     [organizationId, setOrganizationId] = useState(organizations[0]?.id ?? ""),
     [tab, setTab] = useState<"overview" | "newpatients" | "messages" | "system" | "staff" | "patients" | "history">("overview"),
@@ -342,7 +344,7 @@ export function AdministrationWorkspace({
       (m) => m.user_id === session.userId && m.role === "admin",
     )?.display_name ?? session.name;
   return (
-    <div className="workspace administration-workspace">
+    <div className={"workspace administration-workspace" + rail.className} style={rail.style}>
       <header className="admin-topbar">
         <a className="admin-brand" href={demo ? "/demo/admin" : links.administration}>
           <span className="brand-mark">
@@ -443,10 +445,11 @@ export function AdministrationWorkspace({
               }}
             >
               <Icon size={17} />
-              {label}
+              <span className="nav-label">{label}</span>
             </button>
           ))}
         </nav>
+        <RailControls rail={rail} />
       </aside>
       <div className="main-shell">
         {demo && (
