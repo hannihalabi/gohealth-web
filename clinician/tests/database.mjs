@@ -112,7 +112,8 @@ try {
   await db.exec(await readFile(new URL("../../supabase/migrations/20261124110000_message_count.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../../supabase/migrations/20261124120000_patient_history.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../../supabase/migrations/20261125100000_overview_v2.sql", import.meta.url), "utf8"));
-  for (const suite of ["clinician_core.sql","clinician_administration.sql","clinician_portal_password_beta.sql","clinician_ct_archives.sql","administration_overview.sql","health_history.sql","care_teams.sql","patient_pipeline.sql","record_annulment.sql","database_health.sql","health_trend.sql","patient_directory.sql","automatic_health_sync.sql","health_summary.sql","health_daily.sql","clinician_overview.sql","patient_messages.sql","more_roles.sql","activity_log.sql","chat_booking.sql","overview_v2.sql"]) {
+  await db.exec(await readFile(new URL("../../supabase/migrations/20261125110000_colleagues.sql", import.meta.url), "utf8"));
+  for (const suite of ["clinician_core.sql","clinician_administration.sql","clinician_portal_password_beta.sql","clinician_ct_archives.sql","administration_overview.sql","health_history.sql","care_teams.sql","patient_pipeline.sql","record_annulment.sql","database_health.sql","health_trend.sql","patient_directory.sql","automatic_health_sync.sql","health_summary.sql","health_daily.sql","clinician_overview.sql","patient_messages.sql","more_roles.sql","activity_log.sql","chat_booking.sql","overview_v2.sql","colleagues.sql"]) {
     await db.exec("begin");
     const results = await db.exec(
       await readFile(

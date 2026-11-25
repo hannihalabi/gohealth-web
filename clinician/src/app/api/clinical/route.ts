@@ -16,6 +16,8 @@ const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("history"), patientId: z.uuid() }).strict(),
   z.object({ action: z.literal("review_deviation"), patientId: z.uuid(), key: z.string().min(1).max(200), undo: z.boolean().optional() }).strict(),
   z.object({ action: z.literal("overview") }).strict(),
+  z.object({ action: z.literal("colleagues") }).strict(),
+  z.object({ action: z.literal("set_phone"), phone: z.string().trim().max(30) }).strict(),
   z.object({ action: z.literal("inbox"), op: z.enum(["list", "poll"]) }).strict(),
   z.object({
     action: z.literal("messages"),
@@ -126,6 +128,12 @@ export async function POST(request: Request) {
         break;
       case "overview":
         result = await db.rpc("clinician_overview");
+        break;
+      case "colleagues":
+        result = await db.rpc("clinician_colleagues");
+        break;
+      case "set_phone":
+        result = await db.rpc("clinician_set_phone", { p_phone: body.phone });
         break;
       case "inbox":
         result = await db.rpc("clinician_message_inbox", { p_action: body.op });

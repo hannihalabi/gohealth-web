@@ -5,6 +5,7 @@ import { ConsultDialog } from "@/components/consult-dialog";
 import { PatientMessages } from "@/components/patient-messages";
 import { InboxView } from "@/components/inbox-view";
 import { CalendarView } from "@/components/calendar-view";
+import { ColleaguesView } from "@/components/colleagues-view";
 import { PatientHistory } from "@/components/patient-history";
 import { RailControls, useRail } from "@/components/rail";
 import { RoleBadge } from "@/components/role-badge";
@@ -19,6 +20,7 @@ import {
   CheckCircle2,
   RefreshCw,
   ClipboardList,
+  Contact,
   Download,
   FileCheck2,
   FlaskConical,
@@ -153,7 +155,7 @@ export function Portal({
     } | null>(null),
     [publishing, setPublishing] = useState<ClinicalRecord | null>(null);
   const rail = useRail("gohealth.rail.clinical");
-  const [view, setView] = useState<"home" | "inbox" | "calendar" | "patients" | "all" | "attest">("home"),
+  const [view, setView] = useState<"home" | "inbox" | "calendar" | "patients" | "all" | "attest" | "colleagues">("home"),
     [inboxWaiting, setInboxWaiting] = useState(demo ? 1 : 0),
     [messageCount, setMessageCount] = useState<number | null>(null),
     [consulting, setConsulting] = useState(false),
@@ -721,6 +723,18 @@ export function Portal({
             <span className="nav-label">Attestering</span>
             {!!attest?.length && <span className="nav-count alert">{attest.length}</span>}
           </button>
+          <button
+            className={"nav-item" + (view === "colleagues" ? " selected" : "")}
+            aria-label="Kollegor"
+            onClick={() => {
+              rail.navClick((view === "colleagues") && !detail);
+              setView("colleagues");
+              closeDetail();
+            }}
+          >
+            <Contact size={17} />
+            <span className="nav-label">Kollegor</span>
+          </button>
         </nav>
         <RailControls rail={rail} />
       </aside>
@@ -780,8 +794,8 @@ export function Portal({
                     className={!detail ? "active" : ""}
                     onClick={closeDetail}
                   >
-                    {view === "home" ? <LayoutDashboard size={15} /> : view === "inbox" ? <Inbox size={15} /> : view === "calendar" ? <CalendarDays size={15} /> : <ClipboardCheck size={15} />}
-                    {view === "home" ? "Översikt" : view === "inbox" ? "Inkorg" : view === "calendar" ? "Kalender" : "Attestering"}
+                    {view === "home" ? <LayoutDashboard size={15} /> : view === "inbox" ? <Inbox size={15} /> : view === "calendar" ? <CalendarDays size={15} /> : view === "colleagues" ? <Contact size={15} /> : <ClipboardCheck size={15} />}
+                    {view === "home" ? "Översikt" : view === "inbox" ? "Inkorg" : view === "calendar" ? "Kalender" : view === "colleagues" ? "Kollegor" : "Attestering"}
                   </button>
                 )}
                 {detail && (
@@ -829,6 +843,8 @@ export function Portal({
                 void open(known ?? { id: p.id, display_name: p.display_name, identity_label: "", identity_verified: true, last_sync_at: null }, "messages");
               }}
             />
+          ) : !detail && view === "colleagues" ? (
+            <ColleaguesView demo={demo} />
           ) : !detail && view === "attest" ? (
             <AttestationGrid
               items={attest}

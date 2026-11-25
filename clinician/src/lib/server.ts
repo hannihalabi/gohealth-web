@@ -110,6 +110,7 @@ const knownMessages: Record<string, string> = {
   "Nothing to archive": "Chatten är redan stängd.",
   "Too many quick replies": "Du kan spara högst 50 egna snabbsvar.",
   "Patient app account required": "Patienten har inget verifierat appkonto.",
+  "Invalid phone number": "Ange numret med siffror, till exempel 070-123 45 67.",
 };
 export function failure(error: unknown) {
   if (error instanceof ApiError)
