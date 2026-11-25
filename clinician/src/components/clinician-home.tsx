@@ -379,7 +379,7 @@ function DeviationsCard({ data, isDoctor, onReview, onOpenPatient }: {
   onReview: (d: HomeDeviation, undo?: boolean) => Promise<void>;
   onOpenPatient: (p: { id: string; display_name: string }, tab?: "overview" | "messages" | "lab" | "vitals") => void;
 }) {
-  const [tab, setTab] = useState<"vitals" | "lab" | "sync">("vitals");
+  const [tab, setTab] = useState<"vitals" | "lab" | "sync">("lab");
   const all = data?.deviations ?? [];
   const group = (c: string) => all.filter((d) => (d.category ?? (d.rule === "lab" ? "lab" : d.rule === "sync" ? "sync" : "vitals")) === c);
   const rows = group(tab).sort((a, b) => Number(!!a.reviewed_at) - Number(!!b.reviewed_at));
@@ -387,7 +387,7 @@ function DeviationsCard({ data, isDoctor, onReview, onOpenPatient }: {
   return (
     <Card id="home-deviations" icon={<Activity size={18} />} title="Avvikelser i din patientpool" subtitle="Dina patienter jämfört med sina egna värden och referensintervall">
       <div className="home-seg" role="tablist" aria-label="Typ av avvikelse">
-        {([["vitals", "Vitalparametrar", <Activity key="a" size={14} />], ["lab", "Blodprover", <FlaskConical key="f" size={14} />],
+        {([["lab", "Blodprover", <FlaskConical key="f" size={14} />], ["vitals", "Vitalparametrar", <Activity key="a" size={14} />],
           ["sync", "Datasynk", <WifiOff key="w" size={14} />]] as const).map(([id, label, icon]) => (
           <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>
             {icon} {label} {open(id) > 0 && <span>{open(id)}</span>}
@@ -423,7 +423,7 @@ function DeviationsCard({ data, isDoctor, onReview, onOpenPatient }: {
         </ul>
       )}
       <p className="home-foot">
-        Vitalparametrar: senaste 7 dagarna mot patientens 60 dagar före. Blodprover: senaste publicerade värde per analys mot referensintervallet.
+        Blodprover: senaste publicerade värde per analys mot referensintervallet. Vitalparametrar: senaste 7 dagarna mot patientens 60 dagar före.
         En granskad trend kommer tillbaka nästa vecka om den består.
       </p>
     </Card>
