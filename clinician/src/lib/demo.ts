@@ -204,21 +204,55 @@ export function demoPublish(
   );
 }
 
-/** Synthetic start page for the demonstration environment. */
+/** Synthetic start page for the demonstration environment. Meetings are placed around today so the agenda is alive. */
 export function demoHome(): HomeData {
+  const [a, b, c] = demoPatients;
+  const other = demoOtherPatients[0];
+  const at = (days: number, hour: number, minute = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(hour, minute, 0, 0);
+    return d.toISOString();
+  };
+  const plus20 = (iso: string) => new Date(Date.parse(iso) + 20 * 60000).toISOString();
+  const meeting = (id: string, p: { id: string; display_name: string }, iso: string, visit: "video" | "phone" | "clinic") =>
+    ({ id, patient_id: p.id, display_name: p.display_name, visit_type: visit, starts_at: iso, ends_at: plus20(iso) });
+  const dayOnly = (days: number) => at(days, 12).slice(0, 10);
   return {
-    counts: { assigned: demoPatients.length, clinic: demoPatients.length + demoOtherPatients.length, unsigned: 1, consultations: 1, messages: 1 },
-    messages: [{ patient_id: demoPatients[0].id, display_name: demoPatients[0].display_name, body: "Tack! Behöver jag ta om sköldkörtelprovet?", created_at: "2026-11-16T10:05:00Z", waiting: 1 }],
-    unsigned: [{ id: "demo-unsigned-1", patient_id: demoPatients[0].id, display_name: demoPatients[0].display_name, kind: "lab", title: "Uppföljande sköldkörtelprov", created_at: "2026-11-17T09:00:00Z" }],
-    announcements: [{ id: "demo-announcement-1", title: "Influensavaccination", body: "Säsongens vaccination startar på måndag. Prioritera patienter i riskgrupp.", created_at: "2026-11-16T08:00:00Z", author: "Administratör" }],
+    role: "doctor",
+    counts: { assigned: demoPatients.length, clinic: demoPatients.length + demoOtherPatients.length, unsigned: 1, consultations: 1, messages: 1, review: 3 },
+    messages: [{ patient_id: a.id, display_name: a.display_name, body: "Tack! Behöver jag ta om sköldkörtelprovet?", created_at: at(0, 7, 42), waiting: 1 }],
+    unsigned: [{ id: "demo-unsigned-1", patient_id: a.id, display_name: a.display_name, kind: "lab", title: "Uppföljande sköldkörtelprov", created_at: at(-1, 9) }],
+    announcements: [{ id: "demo-announcement-1", title: "Influensavaccination", body: "Säsongens vaccination startar på måndag. Prioritera patienter i riskgrupp.", created_at: at(-2, 8), author: "Administratör" }],
     consultations: [{
-      id: "demo-consultation-1", patient_id: demoOtherPatients[0].id, display_name: demoOtherPatients[0].display_name, direction: "in", status: "open",
-      message: "Kan du titta på vilopulsen? Den har stigit den senaste veckan.", reply: null, created_at: "2026-11-17T07:30:00Z", replied_at: null,
+      id: "demo-consultation-1", patient_id: other.id, display_name: other.display_name, direction: "in", status: "open",
+      message: "Kan du titta på vilopulsen? Den har stigit den senaste veckan.", reply: null, created_at: at(-1, 7, 30), replied_at: null,
       from_name: "Dr. Berg", to_name: null, record: null,
     }],
     deviations: [
-      { patient_id: demoPatients[0].id, display_name: demoPatients[0].display_name, rule: "resting-heart-rate", severity: "warn", title: "Stigande vilopuls", detail: "71 slag/min senaste 7 dagarna mot 62 slag/min tidigare", at: "2026-11-17" },
-      { patient_id: demoPatients[1].id, display_name: demoPatients[1].display_name, rule: "sync", severity: "info", title: "Ingen datasynk", detail: "Senaste synk för 21 dagar sedan", at: "2026-10-27" },
+      { patient_id: b.id, display_name: b.display_name, rule: "oxygen", category: "vitals", severity: "high", title: "Låg syremättnad",
+        detail: "Lägsta 89 % senaste 7 dagarna", at: dayOnly(-1), key: "oxygen:demo", data: { recent: 89, low: 92, unit: "%", direction: "down" } },
+      { patient_id: a.id, display_name: a.display_name, rule: "resting-heart-rate", category: "vitals", severity: "warn", title: "Stigande vilopuls",
+        detail: "71 slag/min senaste 7 dagarna mot 62 slag/min tidigare", at: dayOnly(0), key: "rhr:demo", data: { recent: 71, base: 62, unit: "slag/min", direction: "up" } },
+      { patient_id: a.id, display_name: a.display_name, rule: "lab", category: "lab", severity: "warn", title: "Provsvar utanför referens",
+        detail: "TSH 6.8 mIE/L", at: dayOnly(-3), key: "lab:demo:tsh", data: { name: "TSH", value: 6.8, unit: "mIE/L", low: 0.4, high: 4, direction: "high" } },
+      { patient_id: c.id, display_name: c.display_name, rule: "lab", category: "lab", severity: "warn", title: "Provsvar utanför referens",
+        detail: "Hemoglobin 112 g/L", at: dayOnly(-6), key: "lab:demo:hb", data: { name: "Hemoglobin", value: 112, unit: "g/L", low: 117, high: 153, direction: "low" },
+        reviewed_at: at(-2, 14), reviewed_by: "Dr. Berg" },
+      { patient_id: c.id, display_name: c.display_name, rule: "sync", category: "sync", severity: "info", title: "Ingen datasynk",
+        detail: "Senaste synk för 21 dagar sedan", at: dayOnly(-21), key: "sync:demo" },
+    ],
+    agenda: [
+      meeting("demo-m1", a, at(0, 9, 20), "video"),
+      meeting("demo-m2", b, at(0, 13, 0), "phone"),
+      meeting("demo-m3", c, at(2, 10, 40), "clinic"),
+      meeting("demo-m4", other, at(6, 9, 0), "video"),
+      meeting("demo-m5", b, at(-5, 11, 0), "phone"),
+    ],
+    followups: [
+      { patient_id: c.id, display_name: c.display_name, last_at: at(-41, 10), next_at: null, next_visit_type: null, due_on: dayOnly(-11) },
+      { patient_id: b.id, display_name: b.display_name, last_at: null, next_at: null, next_visit_type: null, due_on: null },
+      { patient_id: a.id, display_name: a.display_name, last_at: at(-28, 9), next_at: at(0, 9, 20), next_visit_type: "video", due_on: dayOnly(2) },
     ],
   };
 }
