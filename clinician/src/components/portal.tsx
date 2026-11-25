@@ -691,30 +691,17 @@ export function Portal({
             <span className="nav-label">Kalender</span>
           </button>
           <button
-            className={"nav-item" + (view === "patients" ? " selected" : "")}
-            aria-label={`Mina patienter (${patients.length})`}
+            className={"nav-item" + (view === "patients" || view === "all" ? " selected" : "")}
+            aria-label={`Patienter (${patients.length} egna)`}
             onClick={() => {
-              setView("patients");
+              if (view !== "patients" && view !== "all") setView("patients");
               setQuery("");
               closeDetail();
             }}
           >
             <Users size={17} />
-            <span className="nav-label">Mina patienter</span>
+            <span className="nav-label">Patienter</span>
             <span className="nav-count">{patients.length}</span>
-          </button>
-          <button
-            className={"nav-item" + (view === "all" ? " selected" : "")}
-            aria-label="Alla patienter"
-            onClick={() => {
-              setView("all");
-              setQuery("");
-              closeDetail();
-            }}
-          >
-            <UsersRound size={17} />
-            <span className="nav-label">Alla patienter</span>
-            {allPatients && <span className="nav-count">{allPatients.length}</span>}
           </button>
           <button
             className={"nav-item" + (view === "attest" ? " selected" : "")}
@@ -768,15 +755,30 @@ export function Portal({
             </div>
           )}
               <div className="wb-tabs" role="tablist" aria-label="Öppna vyer">
-                <button
-                  role="tab"
-                  aria-selected={!detail}
-                  className={!detail ? "active" : ""}
-                  onClick={closeDetail}
-                >
-                  {view === "home" ? <LayoutDashboard size={15} /> : view === "inbox" ? <Inbox size={15} /> : view === "calendar" ? <CalendarDays size={15} /> : view === "attest" ? <ClipboardCheck size={15} /> : view === "all" ? <UsersRound size={15} /> : <Users size={15} />}
-                  {view === "home" ? "Översikt" : view === "inbox" ? "Inkorg" : view === "calendar" ? "Kalender" : view === "attest" ? "Attestering" : view === "all" ? "Alla patienter" : "Mina patienter"}
-                </button>
+                {view === "patients" || view === "all" ? (
+                  // Patienter: my own patients and the whole clinic as two tabs.
+                  ([["patients", "Mina patienter", Users, patients.length], ["all", "Alla patienter", UsersRound, allPatients?.length]] as const).map(([id, label, Icon, count]) => (
+                    <button key={id} role="tab" aria-selected={!detail && view === id} className={!detail && view === id ? "active" : ""}
+                      onClick={() => {
+                        if (view !== id) { setView(id); setQuery(""); }
+                        closeDetail();
+                      }}>
+                      <Icon size={15} />
+                      {label}
+                      {count != null && <span className="wb-count">{count}</span>}
+                    </button>
+                  ))
+                ) : (
+                  <button
+                    role="tab"
+                    aria-selected={!detail}
+                    className={!detail ? "active" : ""}
+                    onClick={closeDetail}
+                  >
+                    {view === "home" ? <LayoutDashboard size={15} /> : view === "inbox" ? <Inbox size={15} /> : view === "calendar" ? <CalendarDays size={15} /> : <ClipboardCheck size={15} />}
+                    {view === "home" ? "Översikt" : view === "inbox" ? "Inkorg" : view === "calendar" ? "Kalender" : "Attestering"}
+                  </button>
+                )}
                 {detail && (
                   <span role="tab" aria-selected className="active wb-patient-tab">
                     <span className="wb-avatar">{initialsOf(detail.patient.display_name)}</span>

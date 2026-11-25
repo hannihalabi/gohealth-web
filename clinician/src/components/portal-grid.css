@@ -60,3 +60,5 @@ table.grid tr.is-locked { cursor: default; }
 table.grid tr.is-locked td { color: var(--muted); }
 table.grid tr.is-locked:hover { background: none; }
 table.grid tr.is-locked .patient-link { cursor: default; color: inherit; }
+.wb-tabs .wb-count { font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 999px; background: #ece7ef; color: var(--muted); }
+.wb-tabs > .active .wb-count { background: #f5eff5; color: var(--plum); }
